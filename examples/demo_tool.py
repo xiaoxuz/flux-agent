@@ -135,8 +135,8 @@ def main():
                     "user_prompt": "请帮我问候王五，然后告诉他北京今天的天气",
                     "tools": ["greet", "get_weather"],  # LLM 可用的工具列表
                     "output_key": "data.response",
-                    "base_url": "https://openproxy-cn.zuoyebang.cc/openproxy/rp/v1",
-                    "api_key": "zyb-20cb8b90ecc6dd4edf789ccc915d7287@video",
+                    "base_url": "",
+                    "api_key": "",
                 },
             }
         ],

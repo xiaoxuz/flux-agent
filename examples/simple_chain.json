@@ -74,8 +74,8 @@
         "system_prompt": "你是一个友好的助手",
         "user_prompt": "${data.user_input}",
         "output_key": "data.user_info",
-        "base_url": "https://openproxy.zuoyebang.cc/openproxy/rp/v1",
-        "api_key": "zyb-89e2dec39127dcaf0634b5d6591fac99@video",
+        "base_url": "",
+        "api_key": "",
         "save_to_messages": false
       },
       "retry_policy": {
@@ -98,8 +98,8 @@
         "model_name": "gpt-4o-mini",
         "user_prompt": "这是你的自我介绍：${data.user_info}, 你认为这个介绍有好不好,只需要回答好或不好,返回 json，{\"nice\":\"yes\"}  yes 或者 no",
         "output_key": "data.score",
-        "base_url": "https://openproxy.zuoyebang.cc/openproxy/rp/v1",
-        "api_key": "zyb-89e2dec39127dcaf0634b5d6591fac99@video",
+        "base_url": "",
+        "api_key": "",
         "response_format": {
           "type": "json_object"
         }
@@ -209,8 +209,8 @@
         "model_name": "gpt-4o-mini",
         "user_prompt": "现在的城市是：${data.city}, 请告诉我这个城市的天气情况",
         "output_key": "data.weather",
-        "base_url": "https://openproxy.zuoyebang.cc/openproxy/rp/v1",
-        "api_key": "zyb-89e2dec39127dcaf0634b5d6591fac99@video",
+        "base_url": "",
+        "api_key": "",
         "tools": [
           "get_weather"
         ]

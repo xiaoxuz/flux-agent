@@ -103,8 +103,8 @@ def main():
                     "response_format": {"type": "json_object"},
                     "output_key": "data.intent",
                     "temperature": 0.3,
-                    "base_url": "https://openproxy.zuoyebang.cc/openproxy/rp/v1",
-                    "api_key": "zyb-89e2dec39127dcaf0634b5d6591fac99@video",
+                    "base_url": "",
+                    "api_key": "",
                 },
             },
             {

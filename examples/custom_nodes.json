@@ -26,8 +26,8 @@
         "system_prompt": "你是一个数学家，我给你一道题目，你要给解题过程",
         "user_prompt": "题目是：${data.question}",
         "output_key": "data.answer",
-        "base_url": "https://openproxy.zuoyebang.cc/openproxy/rp/v1",
-        "api_key": "zyb-89e2dec39127dcaf0634b5d6591fac99@video",
+        "base_url": "",
+        "api_key": "",
         "save_to_messages": false
       },
       "retry_policy": {

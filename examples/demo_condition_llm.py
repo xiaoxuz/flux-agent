@@ -24,8 +24,8 @@ def main():
                     "user_prompt": "${data.question}",
                     "output_key": "data.score",
                     "temperature": 0.7,
-                    "base_url": "https://openproxy.zuoyebang.cc/openproxy/rp/v1",
-                    "api_key": "zyb-20cb8b90ecc6dd4edf789ccc915d7287@video"
+                    "base_url": "",
+                    "api_key": ""
                 }
             },
             {
