@@ -1,0 +1,87 @@
+[project]
+name = "auto-agent"
+version = "0.1.0"
+description = "基于 LangGraph + LLM 的通用 Agent 编排框架"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+
+authors = [
+    {name = "Auto-Agent Team", email = "xiaoxu344@163.com"}
+]
+
+keywords = ["agent", "langgraph", "llm", "workflow", "orchestration"]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "langgraph>=0.3.0",
+    "langchain-core>=0.3.0",
+    "pydantic>=2.0",
+    "requests>=2.28.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0",
+    "build>=1.0",
+    "twine>=4.0",
+]
+anthropic = ["langchain-anthropic>=0.3.0"]
+openai = ["langchain-openai>=0.2.0"]
+google = ["langchain-google-genai>=2.0.0"]
+all = [
+    "auto-agent[anthropic,openai,google,dev]",
+]
+
+[project.urls]
+Homepage = "https://github.com/xiaoxuz/auto-agent"
+Documentation = "https://github.com/xiaoxuz/auto-agent#readme"
+Repository = "https://github.com/xiaoxuz/auto-agent"
+Issues = "https://github.com/xiaoxuz/auto-agent/issues"
+
+[project.scripts]
+auto-agent = "auto_agent.cli:main"
+
+[project.entry-points."auto_agent.nodes"]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["auto_agent"]
+
+[tool.setuptools.package-data]
+auto_agent = ["py.typed"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

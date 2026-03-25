@@ -1,0 +1,73 @@
+{
+  "workflow": {
+    "name": "custom-nodes",
+    "description": "简单的自定义节点示例"
+  },
+  "nodes": [
+    {
+      "id": "init",
+      "type": "TransformNode",
+      "config": {
+        "transforms": [
+          {
+            "action": "set",
+            "key": "data.status",
+            "value": "processing"
+          }
+        ]
+      }
+    },
+    {
+      "id": "question_agent",
+      "type": "LLMNode",
+      "config": {
+        "model": "openai",
+        "model_name": "gpt-4o-mini",
+        "system_prompt": "你是一个数学家，我给你一道题目，你要给解题过程",
+        "user_prompt": "题目是：${data.question}",
+        "output_key": "data.answer",
+        "base_url": "https://openproxy.zuoyebang.cc/openproxy/rp/v1",
+        "api_key": "zyb-89e2dec39127dcaf0634b5d6591fac99@video",
+        "save_to_messages": false
+      },
+      "retry_policy": {
+        "max_attempts": 3,
+        "initial_interval": 1.0,
+        "max_interval": 10.0,
+        "backoff_multiplier": 2.0,
+        "retry_on": [
+          "ConnectionError",
+          "TimeoutError",
+          "TypeError1"
+        ]
+      }
+    },
+	 {
+      "id": "save_answer",
+      "type": "SaveAnswer",
+      "config": {
+        "output_key": "data.answer_store",
+        "input_key": "data.answer",
+        "saver_name": "尕尕小"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "START",
+      "to": "init"
+    },
+    {
+      "from": "init",
+      "to": "question_agent"
+    },
+     {
+      "from": "question_agent",
+      "to": "save_answer"
+    },
+    {
+      "from": "save_answer",
+      "to": "END"
+    }
+  ]
+}

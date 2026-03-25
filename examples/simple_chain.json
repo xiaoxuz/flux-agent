@@ -1,0 +1,275 @@
+{
+  "workflow": {
+    "name": "simple-chain",
+    "description": "简单的 LLM 调用链示例"
+  },
+  "nodes": [
+    {
+      "id": "init",
+      "type": "TransformNode",
+      "config": {
+        "transforms": [
+          {
+            "action": "set",
+            "key": "data.status",
+            "value": "processing"
+          },
+          {
+            "action": "set",
+            "key": "data.turn_count",
+            "value": 0
+          },
+          {
+            "action": "set",
+            "key": "data.user_id",
+            "value": "user_001"
+          },
+          {
+            "action": "set",
+            "key": "data.tags",
+            "value": [
+              "python",
+              "agent"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "get_task_info",
+      "type": "HTTPRequestNode",
+      "config": {
+        "url": "http://luban-llmproxy-cc.suanshubang.cc/llm-proxy/api/taskinfo",
+        "method": "GET",
+        "output_key": "data.task_info",
+        "params": {
+          "task_id": "${context.task_id}"
+        },
+        "timeout": 10
+      }
+    },
+
+    {
+      "id": "check_task_status",
+      "type": "ConditionNode",
+      "config": {
+        "branches": [
+          {
+            "condition": "data.task_info.errNo == 0",
+            "target": "info"
+          },
+          {
+            "condition": "default",
+            "target": "END"
+          }
+        ]
+      }
+    },
+    {
+      "id": "info",
+      "type": "LLMNode",
+      "config": {
+        "model": "openai",
+        "model_name": "gpt-4o-mini",
+        "system_prompt": "你是一个友好的助手",
+        "user_prompt": "${data.user_input}",
+        "output_key": "data.user_info",
+        "base_url": "https://openproxy.zuoyebang.cc/openproxy/rp/v1",
+        "api_key": "zyb-89e2dec39127dcaf0634b5d6591fac99@video",
+        "save_to_messages": false
+      },
+      "retry_policy": {
+        "max_attempts": 3,
+        "initial_interval": 1.0,
+        "max_interval": 10.0,
+        "backoff_multiplier": 2.0,
+        "retry_on": [
+          "ConnectionError",
+          "TimeoutError",
+          "TypeError1"
+        ]
+      }
+    },
+    {
+      "id": "ai_nice",
+      "type": "LLMNode",
+      "config": {
+        "model": "openai",
+        "model_name": "gpt-4o-mini",
+        "user_prompt": "这是你的自我介绍：${data.user_info}, 你认为这个介绍有好不好,只需要回答好或不好,返回 json，{\"nice\":\"yes\"}  yes 或者 no",
+        "output_key": "data.score",
+        "base_url": "https://openproxy.zuoyebang.cc/openproxy/rp/v1",
+        "api_key": "zyb-89e2dec39127dcaf0634b5d6591fac99@video",
+        "response_format": {
+          "type": "json_object"
+        }
+      },
+      "retry_policy": {
+        "max_attempts": 3,
+        "initial_interval": 1.0,
+        "max_interval": 10.0,
+        "backoff_multiplier": 2.0,
+        "retry_on": [
+          "ConnectionError",
+          "TimeoutError",
+          "TypeError1"
+        ]
+      }
+    },
+    {
+      "id": "check_nice",
+      "type": "ConditionNode",
+      "config": {
+        "branches": [
+          {
+            "condition": "data.score.nice == 'yes'",
+            "target": "goodperson"
+          },
+          {
+            "condition": "data.score.nice == 'no'",
+            "target": "badperson"
+          },
+          {
+            "condition": "default",
+            "target": "badperson"
+          }
+        ]
+      }
+    },
+    {
+      "id": "goodperson",
+      "type": "TransformNode",
+      "config": {
+        "transforms": [
+          {
+            "action": "set",
+            "key": "data.response",
+            "value": "好人"
+          },
+          {
+            "action": "increment",
+            "key": "data.turn_count"
+          },
+          {
+            "action": "append",
+            "key": "data.tags",
+            "value": "好人"
+          },
+          {
+            "action": "merge",
+            "key": "data.config",
+            "value": {
+              "debug": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "badperson",
+      "type": "TransformNode",
+      "config": {
+        "transforms": [
+          {
+            "action": "set",
+            "key": "data.response",
+            "value": "坏人"
+          }
+        ]
+      }
+    },
+    {
+      "id": "call_tool_greet",
+      "type": "ToolNode",
+      "config": {
+        "tool_name": "greet",
+        "args": {
+          "name": "${data.response}",
+          "taskID": "${context.task_id}"
+        },
+        "output_key": "data.greet"
+      }
+    },
+    {
+      "id": "call_tool_get_city",
+      "type": "ToolNode",
+      "config": {
+        "tool_name": "get_city",
+        "args": {
+          "greet": "${data.greet}"
+        },
+        "output_key": "data.city"
+      }
+    },
+    {
+      "id": "get_weather_llm",
+      "type": "LLMNode",
+      "config": {
+        "model": "openai",
+        "model_name": "gpt-4o-mini",
+        "user_prompt": "现在的城市是：${data.city}, 请告诉我这个城市的天气情况",
+        "output_key": "data.weather",
+        "base_url": "https://openproxy.zuoyebang.cc/openproxy/rp/v1",
+        "api_key": "zyb-89e2dec39127dcaf0634b5d6591fac99@video",
+        "tools": [
+          "get_weather"
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "START",
+      "to": "init"
+    },
+    {
+      "from": "init",
+      "to": "get_task_info"
+    },
+     {
+      "from": "get_task_info",
+      "to": "check_task_status"
+    },
+    {
+      "from": "check_task_status",
+      "condition_map": {
+        "check_task_info_pass": "info"
+      }
+    },
+    {
+      "from": "info",
+      "to": "ai_nice"
+    },
+    {
+      "from": "ai_nice",
+      "to": "check_nice"
+    },
+    {
+      "from": "check_nice",
+      "condition_map": {
+        "goodperson": "goodperson",
+        "badperson": "badperson"
+      }
+    },
+    {
+      "from": "goodperson",
+      "to": "call_tool_greet"
+    },
+    {
+      "from": "badperson",
+      "to": "call_tool_greet"
+    },
+    {
+      "from": "call_tool_greet",
+      "to": "call_tool_get_city"
+    },
+    {
+      "from": "call_tool_get_city",
+      "to": "get_weather_llm"
+    },
+    {
+      "from": "get_weather_llm",
+      "to": "END"
+    }
+  ]
+}

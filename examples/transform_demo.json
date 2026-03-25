@@ -1,0 +1,61 @@
+{
+  "workflow": {
+    "name": "transform-demo",
+    "description": "数据转换节点演示（无需 API Key）"
+  },
+  "nodes": [
+    {
+      "id": "init",
+      "type": "TransformNode",
+      "config": {
+        "transforms": [
+          {"action": "set", "key": "data.message", "value": "Hello, Auto-Agent!"},
+          {"action": "set", "key": "data.count", "value": 0}
+        ]
+      }
+    },
+    {
+      "id": "increment",
+      "type": "TransformNode",
+      "config": {
+        "transforms": [
+          {"action": "increment", "key": "data.count"},
+          {"action": "append", "key": "data.logs", "value": "计数器已增加"}
+        ]
+      }
+    },
+    {
+      "id": "check_count",
+      "type": "ConditionNode",
+      "config": {
+        "branches": [
+          {"condition": "data.count < 3", "target": "increment"},
+          {"condition": "default", "target": "finalize"}
+        ]
+      }
+    },
+    {
+      "id": "finalize",
+      "type": "TransformNode",
+      "config": {
+        "transforms": [
+          {"action": "set", "key": "data.status", "value": "completed"},
+          {"action": "set", "key": "data.final_message", "value": "工作流执行完成！"}
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {"from": "START", "to": "init"},
+    {"from": "init", "to": "increment"},
+    {"from": "increment", "to": "check_count"},
+    {
+      "from": "check_count",
+      "condition_map": {
+        "increment": "increment",
+        "finalize": "finalize"
+      }
+    },
+    {"from": "finalize", "to": "END"}
+  ]
+}
