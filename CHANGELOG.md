@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2025-03-25
+
+### Changed
+- 包名从 auto-agent 改为 flux-agent
+- 默认安装所有常用 LLM 依赖（OpenAI, Anthropic, Google, Community）
+
+### Fixed
+- 修复 license 字段格式问题
+
 ## [0.1.0] - 2025-03-24
 
 ### Added

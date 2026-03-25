@@ -332,7 +332,7 @@ tar -tzf dist/flux_agent-0.1.1.tar.gz | head -20
 unzip -l dist/flux_agent-0.1.1-py3-none-any.whl | head -20
 
 # 验证元数据
-twine check dist/*
+./venv/bin/twine check dist/*
 ```
 
 ### 5.4 本地安装测试
@@ -357,7 +357,7 @@ print('✅ 安装成功')
 
 ```bash
 # 上传到 TestPyPI
-twine upload --repository testpypi dist/*
+./venv/bin/twine upload --repository testpypi dist/*
 
 # 从 TestPyPI 安装测试
 pip install --index-url https://test.pypi.org/simple/ flux-agent
@@ -367,7 +367,7 @@ pip install --index-url https://test.pypi.org/simple/ flux-agent
 
 ```bash
 # 上传到 PyPI
-twine upload dist/*
+./venv/bin/twine upload dist/*
 ```
 
 ### 5.7 验证发布
@@ -470,7 +470,7 @@ python -m venv clean_env
 source clean_env/bin/activate
 
 # 从 PyPI 安装
-pip install flux-agent
+./venv/bin/pip install flux-agent
 
 # 测试
 python -c "from flux_agent import WorkflowRunner; print('OK')"
@@ -532,15 +532,15 @@ git push origin main
 
 # ========== 4. 构建 ==========
 rm -rf dist/ build/
-python -m build
+./venv/bin/python -m build
 
 # ========== 5. 本地验证 ==========
-pip uninstall flux-agent -y
-pip install dist/flux_agent-0.1.1-py3-none-any.whl
+./venv/bin/pip uninstall flux-agent -y
+./venv/bin/pip install dist/flux_agent-0.1.1-py3-none-any.whl
 ./venv/bin/python examples/demo_llm.py
 
 # ========== 6. 发布 ==========
-twine upload dist/*
+./venv/bin/twine upload dist/* --verbose
 
 # ========== 7. 打 Tag ==========
 git tag -a v0.1.1 -m "Release v0.1.1"
@@ -563,12 +563,12 @@ black flux_agent/              # 格式化
 ruff check flux_agent/ --fix   # Lint
 
 # 构建
-python -m build                # 构建
-twine check dist/*             # 检查
+./venv/bin/python -m build                # 构建
+./venv/bin/twine upload dist/* --verbose        # 检查
 
 # 发布
-twine upload dist/*            # 发布到 PyPI
-twine upload --repository testpypi dist/*  # 发布到 TestPyPI
+./venv/bin/twine upload dist/*            # 发布到 PyPI
+./venv/bin/twine upload --repository testpypi dist/*  # 发布到 TestPyPI
 
 # Git
 git tag -a v0.1.0 -m "Release v0.1.0"
