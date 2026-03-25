@@ -1,6 +1,6 @@
 # 开发、测试、发布指南
 
-本文档详细说明 auto-agent 模块的开发、测试和发布流程。
+本文档详细说明 flux-agent 模块的开发、测试和发布流程。
 
 ---
 
@@ -9,8 +9,8 @@
 ### 1.1 克隆项目
 
 ```bash
-git clone https://github.com/xiaoxuz/auto-agent.git
-cd auto-agent
+git clone https://github.com/xiaoxuz/flux-agent.git
+cd flux-agent
 ```
 
 ### 1.2 创建虚拟环境
@@ -40,7 +40,7 @@ python -c "from flux_agent import WorkflowRunner; print('✅ 安装成功')"
 ### 2.1 目录结构
 
 ```
-auto-agent/
+flux-agent/
 ├── flux_agent/          # 包代码（修改这里）
 │   ├── __init__.py
 │   ├── core/
@@ -246,7 +246,7 @@ PATCH - 向后兼容的 bug 修复
 
 ```toml
 [project]
-name = "auto-agent"
+name = "flux-agent"
 version = "0.1.1"  # 修改这里
 ```
 
@@ -339,7 +339,7 @@ twine check dist/*
 
 ```bash
 # 卸载当前版本
-pip uninstall auto-agent -y
+pip uninstall flux-agent -y
 
 # 安装构建的包
 pip install dist/flux_agent-0.1.1-py3-none-any.whl
@@ -360,7 +360,7 @@ print('✅ 安装成功')
 twine upload --repository testpypi dist/*
 
 # 从 TestPyPI 安装测试
-pip install --index-url https://test.pypi.org/simple/ auto-agent
+pip install --index-url https://test.pypi.org/simple/ flux-agent
 ```
 
 ### 5.6 发布到 PyPI（正式）
@@ -380,7 +380,7 @@ python -m venv test_env
 source test_env/bin/activate
 
 # 从 PyPI 安装
-pip install auto-agent
+pip install flux-agent
 
 # 验证
 python -c "
@@ -470,7 +470,7 @@ python -m venv clean_env
 source clean_env/bin/activate
 
 # 从 PyPI 安装
-pip install auto-agent
+pip install flux-agent
 
 # 测试
 python -c "from flux_agent import WorkflowRunner; print('OK')"
@@ -480,7 +480,7 @@ python -c "from flux_agent import WorkflowRunner; print('OK')"
 
 ```bash
 # 检查版本号是否已存在
-curl -s https://pypi.org/pypi/auto-agent/json | grep version
+curl -s https://pypi.org/pypi/flux-agent/json | grep version
 
 # 如果版本已存在，需要更新版本号
 # 修改 pyproject.toml 和 __init__.py
@@ -492,20 +492,20 @@ PyPI 不支持撤销已发布的版本，只能发布新版本修复。TestPyPI 
 
 ```bash
 # 需要在 PyPI 网站上操作
-# https://test.pypi.org/manage/project/auto-agent/releases/
+# https://test.pypi.org/manage/project/flux-agent/releases/
 ```
 
-### Q5: 如何在业务项目中测试开发中的 auto-agent？
+### Q5: 如何在业务项目中测试开发中的 flux-agent？
 
 ```bash
 # 方式1：本地路径安装
-pip install -e /path/to/auto-agent
+pip install -e /path/to/flux-agent
 
 # 方式2：Git 安装
-pip install git+https://github.com/xiaoxuz/auto-agent.git@main
+pip install git+https://github.com/xiaoxuz/flux-agent.git@main
 
 # 方式3：指定分支
-pip install git+https://github.com/xiaoxuz/auto-agent.git@feature/xxx
+pip install git+https://github.com/xiaoxuz/flux-agent.git@feature/xxx
 ```
 
 ---
@@ -535,7 +535,7 @@ rm -rf dist/ build/
 python -m build
 
 # ========== 5. 本地验证 ==========
-pip uninstall auto-agent -y
+pip uninstall flux-agent -y
 pip install dist/flux_agent-0.1.1-py3-none-any.whl
 ./venv/bin/python examples/demo_llm.py
 
@@ -547,7 +547,7 @@ git tag -a v0.1.1 -m "Release v0.1.1"
 git push origin v0.1.1
 
 # ========== 8. 验证发布 ==========
-pip install auto-agent --upgrade
+pip install flux-agent --upgrade
 python -c "from flux_agent import WorkflowRunner; print('OK')"
 ```
 

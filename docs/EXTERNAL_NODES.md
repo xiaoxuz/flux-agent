@@ -2,7 +2,7 @@
 
 ## 一、概述
 
-将业务节点作为独立 Python 包开发，通过 `entry_points` 自动注册到 auto-agent。
+将业务节点作为独立 Python 包开发，通过 `entry_points` 自动注册到 flux-agent。
 
 **优势：**
 - 独立版本管理
@@ -61,7 +61,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "my-business-nodes"
 version = "1.0.0"
-dependencies = ["auto-agent>=0.1.0"]
+dependencies = ["flux-agent>=0.1.0"]
 
 # 关键：注册节点
 [project.entry-points."flux_agent.nodes"]
@@ -106,7 +106,7 @@ result = runner.invoke({"data": {"video_url": "https://..."}})
 
 ```bash
 # 安装框架
-pip install -e /path/to/auto-agent
+pip install -e /path/to/flux-agent
 
 # 安装业务节点
 pip install -e .

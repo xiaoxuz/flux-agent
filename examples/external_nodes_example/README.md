@@ -1,6 +1,6 @@
 # gvideo-nodes
 
-Auto-Agent 外部节点示例包。
+Flux-Agent 外部节点示例包。
 
 ## 安装
 
@@ -41,7 +41,7 @@ python -c "from core.registry import NodeRegistry; r = NodeRegistry(); print(r.l
 ```
 pyproject.toml 中的配置：
 
-[project.entry-points."auto_agent.nodes"]
+[project.entry-points."flux_agent.nodes"]
 video_render = "gvideo_nodes.video_render:VideoRenderNode"
 
 ↓ 安装后自动注册到 NodeRegistry

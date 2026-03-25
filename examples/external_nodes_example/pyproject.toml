@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "gvideo-nodes"
 version = "1.0.0"
-description = "视频渲染业务节点包 - auto-agent 外部节点示例"
+description = "视频渲染业务节点包 - flux-agent 外部节点示例"
 authors = [{name = "Demo", email = "demo@example.com"}]
 dependencies = []
 

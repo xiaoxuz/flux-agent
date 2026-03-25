@@ -1,6 +1,6 @@
 # flux_agent/__init__.py
 """
-Auto-Agent: 基于 LangGraph + LLM 的通用 Agent 编排框架
+Flux-Agent: 基于 LangGraph + LLM 的通用 Agent 编排框架
 
 通过 JSON 配置文件即可启动多 Agent Node 工作流。
 """

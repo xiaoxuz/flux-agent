@@ -19,7 +19,7 @@ def main():
                 "type": "TransformNode",
                 "config": {
                     "transforms": [
-                        {"action": "set", "key": "data.name", "value": "Auto-Agent"},
+                        {"action": "set", "key": "data.name", "value": "Flux-Agent"},
                         {"action": "set", "key": "data.version", "value": "1.0.0"},
                         {"action": "set", "key": "data.count", "value": 0}
                     ]

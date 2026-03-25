@@ -1,17 +1,17 @@
-# Auto-Agent 使用文档
+# Flux-Agent 使用文档
 
 ## 一、安装
 
 ```bash
-pip install auto-agent
+pip install flux-agent
 ```
 
 可选依赖：
 ```bash
-pip install auto-agent[openai]      # OpenAI 模型
-pip install auto-agent[anthropic]   # Anthropic 模型
-pip install auto-agent[google]      # Google 模型
-pip install auto-agent[all]         # 全部
+pip install flux-agent[openai]      # OpenAI 模型
+pip install flux-agent[anthropic]   # Anthropic 模型
+pip install flux-agent[google]      # Google 模型
+pip install flux-agent[all]         # 全部
 ```
 
 ---

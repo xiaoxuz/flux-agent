@@ -1,4 +1,4 @@
-# Auto-Agent
+# Flux-Agent
 
 基于 LangGraph + LLM 的通用 Agent 编排框架。通过 JSON 配置文件即可启动多 Agent Node 工作流，支持复杂的自动化流程编排。
 

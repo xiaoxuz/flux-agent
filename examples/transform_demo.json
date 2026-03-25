@@ -9,7 +9,7 @@
       "type": "TransformNode",
       "config": {
         "transforms": [
-          {"action": "set", "key": "data.message", "value": "Hello, Auto-Agent!"},
+          {"action": "set", "key": "data.message", "value": "Hello, Flux-Agent!"},
           {"action": "set", "key": "data.count", "value": 0}
         ]
       }
