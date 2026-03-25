@@ -17,13 +17,13 @@
 ### 安装
 
 ```bash
-pip install auto-agent
+pip install flux-agent
 ```
 
 ### 最简示例
 
 ```python
-from auto_agent import WorkflowRunner
+from flux_agent import WorkflowRunner
 
 # 从 JSON 配置加载工作流
 runner = WorkflowRunner("workflow.json")
@@ -87,8 +87,8 @@ print(result)
 ## 项目结构
 
 ```
-auto-agent/
-├── auto_agent/               # 包目录
+flux-agent/
+├── flux_agent/               # 包目录
 │   ├── core/                 # 核心引擎
 │   │   ├── state.py          # 状态模型
 │   │   ├── registry.py       # 节点注册表

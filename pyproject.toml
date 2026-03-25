@@ -1,5 +1,5 @@
 [project]
-name = "auto-agent"
+name = "flux-agent"
 version = "0.1.0"
 description = "基于 LangGraph + LLM 的通用 Agent 编排框架"
 readme = "README.md"
@@ -7,10 +7,10 @@ license = {text = "MIT"}
 requires-python = ">=3.10"
 
 authors = [
-    {name = "Auto-Agent Team", email = "xiaoxu344@163.com"}
+    {name = "Flux-Agent Team", email = "xiaoxu344@163.com"}
 ]
 
-keywords = ["agent", "langgraph", "llm", "workflow", "orchestration"]
+keywords = ["agent", "langgraph", "llm", "workflow", "orchestration", "flux"]
 
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -44,29 +44,27 @@ anthropic = ["langchain-anthropic>=0.3.0"]
 openai = ["langchain-openai>=0.2.0"]
 google = ["langchain-google-genai>=2.0.0"]
 all = [
-    "auto-agent[anthropic,openai,google,dev]",
+    "flux-agent[anthropic,openai,google,dev]",
 ]
 
 [project.urls]
-Homepage = "https://github.com/xiaoxuz/auto-agent"
-Documentation = "https://github.com/xiaoxuz/auto-agent#readme"
-Repository = "https://github.com/xiaoxuz/auto-agent"
-Issues = "https://github.com/xiaoxuz/auto-agent/issues"
+Homepage = "https://github.com/xiaoxuz/flux-agent"
+Documentation = "https://github.com/xiaoxuz/flux-agent#readme"
+Repository = "https://github.com/xiaoxuz/flux-agent"
+Issues = "https://github.com/xiaoxuz/flux-agent/issues"
 
-[project.scripts]
-auto-agent = "auto_agent.cli:main"
-
-[project.entry-points."auto_agent.nodes"]
+[project.entry-points."flux_agent.nodes"]
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["auto_agent"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["flux_agent*"]
 
 [tool.setuptools.package-data]
-auto_agent = ["py.typed"]
+flux_agent = ["py.typed"]
 
 [tool.black]
 line-length = 100

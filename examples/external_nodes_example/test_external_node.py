@@ -71,7 +71,7 @@ def test_external_node():
     print("工作流集成测试")
     print("-" * 50)
 
-    from auto_agent import WorkflowRunner
+    from flux_agent import WorkflowRunner
 
     workflow_config = {
         "workflow": {"name": "test-external-node"},

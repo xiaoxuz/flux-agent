@@ -5,7 +5,7 @@
 所有节点必须继承 `BaseNode`：
 
 ```python
-from auto_agent.nodes.base import BaseNode, NodeConfig
+from flux_agent.nodes.base import BaseNode, NodeConfig
 from dataclasses import dataclass
 from typing import Any, Dict
 
@@ -48,7 +48,7 @@ class MyNode(BaseNode):
 ### 方式1：WorkflowRunner 参数
 
 ```python
-from auto_agent import WorkflowRunner
+from flux_agent import WorkflowRunner
 from my_nodes import MyNode
 
 runner = WorkflowRunner(
@@ -62,7 +62,7 @@ runner = WorkflowRunner(
 在业务节点包的 `pyproject.toml` 中：
 
 ```toml
-[project.entry-points."auto_agent.nodes"]
+[project.entry-points."flux_agent.nodes"]
 my_node = "my_package.nodes:MyNode"
 ```
 

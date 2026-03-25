@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 
-from auto_agent import WorkflowRunner
+from flux_agent import WorkflowRunner
 
 
 def main():

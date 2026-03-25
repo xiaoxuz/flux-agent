@@ -23,7 +23,7 @@ import os
 from pathlib import Path
 
 
-from auto_agent import WorkflowRunner
+from flux_agent import WorkflowRunner
 
 
 def mock_search_knowledge_base(query: str, limit: int = 5) -> dict:

@@ -21,7 +21,7 @@ pip install auto-agent[all]         # 全部
 ### 2.1 最简示例
 
 ```python
-from auto_agent import WorkflowRunner
+from flux_agent import WorkflowRunner
 
 # 方式1：从 JSON 文件加载
 runner = WorkflowRunner("workflow.json")
@@ -55,7 +55,7 @@ print(result["data"]["response"])
 ### 2.2 带工具的工作流
 
 ```python
-from auto_agent import WorkflowRunner
+from flux_agent import WorkflowRunner
 
 def greet(name: str) -> str:
     """生成问候语"""

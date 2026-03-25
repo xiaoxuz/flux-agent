@@ -15,9 +15,9 @@ logging.basicConfig(
 )
 example_dir = Path(__file__).parent
 
-from auto_agent import WorkflowRunner
-from auto_agent.nodes.base import BaseNode, NodeConfig
-from auto_agent.core.registry import NodeRegistry
+from flux_agent import WorkflowRunner
+from flux_agent.nodes.base import BaseNode, NodeConfig
+from flux_agent.core.registry import NodeRegistry
 
 def example_input_hook(node_id, state):
     # print(f"[IN]>>>>>>>>>>>>>> {node_id}: {state.get('data', {})}")

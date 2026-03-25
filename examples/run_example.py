@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 
-from auto_agent import WorkflowRunner
+from flux_agent import WorkflowRunner
 
 def example_input_hook(node_id, state):
     print(f"[IN]>>>>>>>>>>>>>> {node_id}: {state.get('data', {})}")

@@ -28,7 +28,7 @@ my-business-nodes/
 
 ```python
 # my_nodes/video_process.py
-from auto_agent.nodes.base import BaseNode, NodeConfig
+from flux_agent.nodes.base import BaseNode, NodeConfig
 from dataclasses import dataclass
 from typing import Any, Dict
 
@@ -64,7 +64,7 @@ version = "1.0.0"
 dependencies = ["auto-agent>=0.1.0"]
 
 # 关键：注册节点
-[project.entry-points."auto_agent.nodes"]
+[project.entry-points."flux_agent.nodes"]
 video_process = "my_nodes.video_process:VideoProcessNode"
 
 [tool.setuptools.packages.find]
@@ -87,7 +87,7 @@ pip install my-business-nodes
 使用：
 
 ```python
-from auto_agent import WorkflowRunner
+from flux_agent import WorkflowRunner
 
 # 节点已自动注册
 config = {
@@ -113,7 +113,7 @@ pip install -e .
 
 # 验证注册
 python -c "
-from auto_agent.core.registry import NodeRegistry
+from flux_agent.core.registry import NodeRegistry
 print(NodeRegistry().list_types())
 "
 ```

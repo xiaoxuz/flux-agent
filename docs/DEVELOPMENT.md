@@ -30,7 +30,7 @@ pip install -e ".[dev]"
 ### 1.4 验证安装
 
 ```bash
-python -c "from auto_agent import WorkflowRunner; print('✅ 安装成功')"
+python -c "from flux_agent import WorkflowRunner; print('✅ 安装成功')"
 ```
 
 ---
@@ -41,7 +41,7 @@ python -c "from auto_agent import WorkflowRunner; print('✅ 安装成功')"
 
 ```
 auto-agent/
-├── auto_agent/          # 包代码（修改这里）
+├── flux_agent/          # 包代码（修改这里）
 │   ├── __init__.py
 │   ├── core/
 │   ├── nodes/
@@ -56,8 +56,8 @@ auto-agent/
 ### 2.2 修改代码
 
 ```bash
-# 编辑 auto_agent/ 下的文件
-vim auto_agent/core/executor.py
+# 编辑 flux_agent/ 下的文件
+vim flux_agent/core/executor.py
 ```
 
 ### 2.3 本地测试
@@ -72,7 +72,7 @@ vim auto_agent/core/executor.py
 **方式2：Python 交互测试**
 
 ```python
-from auto_agent import WorkflowRunner
+from flux_agent import WorkflowRunner
 
 config = {
     "workflow": {"name": "test"},
@@ -96,13 +96,13 @@ pytest tests/test_executor.py -v
 
 ```bash
 # 格式化
-black auto_agent/
+black flux_agent/
 
 # Lint
-ruff check auto_agent/ --fix
+ruff check flux_agent/ --fix
 
 # 类型检查
-mypy auto_agent/
+mypy flux_agent/
 ```
 
 ---
@@ -113,7 +113,7 @@ mypy auto_agent/
 
 ```python
 # examples/test_my_feature.py
-from auto_agent import WorkflowRunner
+from flux_agent import WorkflowRunner
 
 def test_something():
     config = {
@@ -143,7 +143,7 @@ if __name__ == "__main__":
 ```python
 # tests/test_executor.py
 import pytest
-from auto_agent import WorkflowRunner
+from flux_agent import WorkflowRunner
 
 def test_simple_workflow():
     config = {
@@ -181,8 +181,8 @@ pytest tests/test_executor.py -v
 
 ```python
 # examples/test_custom_node.py
-from auto_agent import WorkflowRunner
-from auto_agent.nodes.base import BaseNode, NodeConfig
+from flux_agent import WorkflowRunner
+from flux_agent.nodes.base import BaseNode, NodeConfig
 from dataclasses import dataclass
 from typing import Any, Dict
 
@@ -250,7 +250,7 @@ name = "auto-agent"
 version = "0.1.1"  # 修改这里
 ```
 
-**位置2：auto_agent/__init__.py**
+**位置2：flux_agent/__init__.py**
 
 ```python
 __version__ = "0.1.1"  # 修改这里
@@ -287,12 +287,12 @@ pytest tests/
 ./venv/bin/python examples/demo_llm.py
 
 # 3. 代码格式化
-black auto_agent/
-ruff check auto_agent/ --fix
+black flux_agent/
+ruff check flux_agent/ --fix
 
 # 4. 更新版本号
 #    - pyproject.toml
-#    - auto_agent/__init__.py
+#    - flux_agent/__init__.py
 
 # 5. 更新 CHANGELOG.md
 
@@ -318,18 +318,18 @@ python -m build
 
 ```
 dist/
-├── auto_agent-0.1.1-py3-none-any.whl
-└── auto_agent-0.1.1.tar.gz
+├── flux_agent-0.1.1-py3-none-any.whl
+└── flux_agent-0.1.1.tar.gz
 ```
 
 ### 5.3 检查构建
 
 ```bash
 # 检查包内容
-tar -tzf dist/auto_agent-0.1.1.tar.gz | head -20
+tar -tzf dist/flux_agent-0.1.1.tar.gz | head -20
 
 # 检查 wheel
-unzip -l dist/auto_agent-0.1.1-py3-none-any.whl | head -20
+unzip -l dist/flux_agent-0.1.1-py3-none-any.whl | head -20
 
 # 验证元数据
 twine check dist/*
@@ -342,12 +342,12 @@ twine check dist/*
 pip uninstall auto-agent -y
 
 # 安装构建的包
-pip install dist/auto_agent-0.1.1-py3-none-any.whl
+pip install dist/flux_agent-0.1.1-py3-none-any.whl
 
 # 验证
 python -c "
-from auto_agent import WorkflowRunner
-print('版本:', __import__('auto_agent').__version__)
+from flux_agent import WorkflowRunner
+print('版本:', __import__('flux_agent').__version__)
 runner = WorkflowRunner(config_dict={'workflow': {'name': 'test'}, 'nodes': [], 'edges': []})
 print('✅ 安装成功')
 "
@@ -384,8 +384,8 @@ pip install auto-agent
 
 # 验证
 python -c "
-from auto_agent import WorkflowRunner
-print('版本:', __import__('auto_agent').__version__)
+from flux_agent import WorkflowRunner
+print('版本:', __import__('flux_agent').__version__)
 "
 
 # 清理测试环境
@@ -415,7 +415,7 @@ git pull origin main
 git checkout -b feature/new-feature
 
 # 修改代码...
-vim auto_agent/core/executor.py
+vim flux_agent/core/executor.py
 ```
 
 ### 6.2 本地测试
@@ -473,7 +473,7 @@ source clean_env/bin/activate
 pip install auto-agent
 
 # 测试
-python -c "from auto_agent import WorkflowRunner; print('OK')"
+python -c "from flux_agent import WorkflowRunner; print('OK')"
 ```
 
 ### Q3: 发布失败怎么办？
@@ -515,7 +515,7 @@ pip install git+https://github.com/xiaoxuz/auto-agent.git@feature/xxx
 ```bash
 # ========== 1. 开发 ==========
 # 修改代码
-vim auto_agent/core/executor.py
+vim flux_agent/core/executor.py
 
 # 本地测试
 ./venv/bin/python examples/demo_llm.py
@@ -527,7 +527,7 @@ git push origin main
 
 # ========== 3. 更新版本 ==========
 # 修改 pyproject.toml: version = "0.1.1"
-# 修改 auto_agent/__init__.py: __version__ = "0.1.1"
+# 修改 flux_agent/__init__.py: __version__ = "0.1.1"
 # 更新 CHANGELOG.md
 
 # ========== 4. 构建 ==========
@@ -536,7 +536,7 @@ python -m build
 
 # ========== 5. 本地验证 ==========
 pip uninstall auto-agent -y
-pip install dist/auto_agent-0.1.1-py3-none-any.whl
+pip install dist/flux_agent-0.1.1-py3-none-any.whl
 ./venv/bin/python examples/demo_llm.py
 
 # ========== 6. 发布 ==========
@@ -548,7 +548,7 @@ git push origin v0.1.1
 
 # ========== 8. 验证发布 ==========
 pip install auto-agent --upgrade
-python -c "from auto_agent import WorkflowRunner; print('OK')"
+python -c "from flux_agent import WorkflowRunner; print('OK')"
 ```
 
 ---
@@ -559,8 +559,8 @@ python -c "from auto_agent import WorkflowRunner; print('OK')"
 # 开发
 pip install -e ".[dev]"        # 安装开发依赖
 pytest tests/                  # 运行测试
-black auto_agent/              # 格式化
-ruff check auto_agent/ --fix   # Lint
+black flux_agent/              # 格式化
+ruff check flux_agent/ --fix   # Lint
 
 # 构建
 python -m build                # 构建
