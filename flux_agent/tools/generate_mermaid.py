@@ -19,6 +19,7 @@ NODE_TYPE_ICONS = {
     "ToolNode": "🔧",
     "HumanNode": "👤",
     "SubGraphNode": "📦",
+    "CustomNode": "📌",
 }
 
 # 节点类型对应的颜色
@@ -30,6 +31,7 @@ NODE_TYPE_COLORS = {
     "ToolNode": "#795548",
     "HumanNode": "#E91E63",
     "SubGraphNode": "#607D8B",
+    "CustomNode": "#FCD765",
 }
 
 
@@ -40,7 +42,7 @@ def get_node_icon(node_type: str) -> str:
 
 def get_node_color(node_type: str) -> str:
     """获取节点颜色"""
-    return NODE_TYPE_COLORS.get(node_type, "#666666")
+    return NODE_TYPE_COLORS.get(node_type, "#FCD765")
 
 
 def get_node_description(node: Dict[str, Any]) -> str:
@@ -111,6 +113,8 @@ def get_node_description(node: Dict[str, Any]) -> str:
         output = config.get("output_key", "")
         if output:
             parts.append(f"输出: {output.split('.')[-1]}")
+    else:
+        parts.append(f"自定义节点: {node_type}")
 
     return "<br/>".join(parts) if parts else node_type
 
