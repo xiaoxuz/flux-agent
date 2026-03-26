@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Union
 from dataclasses import dataclass, field
 import json
 import logging
+from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
 
 from flux_agent.nodes.base import BaseNode, NodeConfig
 
@@ -28,6 +29,8 @@ class LLMNodeConfig(NodeConfig):
     temperature: float = 0.0
     max_tokens: int = 4096
     tools: List[str] = field(default_factory=list)
+    image_list: List[str] = field(default_factory=list)  # 图片 URL 列表
+    video_list: List[str] = field(default_factory=list)  # 视频 URL 列表（仅 mp4）
     tool_choice: str = "auto"
     parallel_tool_calls: bool = True
     response_format: Optional[Dict] = None
@@ -186,21 +189,9 @@ class LLMNode(BaseNode):
 
             for tool_call in response.tool_calls:
                 tool_result = self._execute_tool_call(tool_call)
-
-                try:
-                    from langchain.messages import ToolMessage
-
-                    messages.append(
-                        ToolMessage(content=str(tool_result), tool_call_id=tool_call.get("id", ""))
-                    )
-                except ImportError:
-                    messages.append(
-                        {
-                            "role": "tool",
-                            "content": str(tool_result),
-                            "tool_call_id": tool_call.get("id", ""),
-                        }
-                    )
+                messages.append(
+                    ToolMessage(content=str(tool_result), tool_call_id=tool_call.get("id", ""))
+                )
 
         if hasattr(response, "content"):
             result = response.content
@@ -217,19 +208,149 @@ class LLMNode(BaseNode):
         output = self._set_nested({}, self.config.output_key, result)
 
         if getattr(self.config, "save_to_messages", True):
-            user_content = self._interpolate(self.config.user_prompt, state)
             assistant_content = (
                 result if isinstance(result, str) else json.dumps(result, ensure_ascii=False)
             )
             if "messages" not in output:
                 output["messages"] = []
-            output["messages"].append({"role": "user", "content": user_content})
+            output["messages"].extend(messages)
             output["messages"].append({"role": "assistant", "content": assistant_content})
 
         return output
 
+    def _is_base64(self, s: str) -> bool:
+        """检查是否是纯 base64 字符串"""
+        import base64
+
+        try:
+            if len(s) < 100:
+                sample = s
+            else:
+                sample = s[:100]
+            base64.b64decode(sample, validate=True)
+            return True
+        except Exception:
+            return False
+
+    def _guess_mime_type_from_url(self, url: str, default: str = "image/jpeg") -> str:
+        """从 URL 推断 MIME type"""
+        import mimetypes
+
+        mime_type, _ = mimetypes.guess_type(url)
+        return mime_type or default
+
+    def _guess_mime_type_from_path(self, path: str, default: str = "image/jpeg") -> str:
+        """从文件路径推断 MIME type"""
+        import mimetypes
+
+        mime_type, _ = mimetypes.guess_type(path)
+        return mime_type or default
+
+    def _download_to_base64(self, url: str, default_mime: str = "image/jpeg") -> tuple:
+        """下载文件并转 base64"""
+        import base64
+
+        try:
+            import httpx
+        except ImportError:
+            raise ImportError("请安装 httpx: pip install httpx")
+
+        response = httpx.get(url, timeout=30, follow_redirects=True)
+        response.raise_for_status()
+        data = base64.b64encode(response.content).decode("utf-8")
+        mime_type = self._guess_mime_type_from_url(url, default_mime)
+        return data, mime_type
+
+    def _read_local_file_to_base64(self, file_path: str, default_mime: str = "image/jpeg") -> tuple:
+        """读取本地文件转 base64"""
+        import base64
+        import os
+
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"文件不存在: {file_path}")
+
+        with open(file_path, "rb") as f:
+            data = base64.b64encode(f.read()).decode("utf-8")
+        mime_type = self._guess_mime_type_from_path(file_path, default_mime)
+        return data, mime_type
+
+    def _process_image(self, image_input: str, state: Dict[str, Any]) -> Dict:
+        """
+        处理图片输入，统一返回 base64 格式
+
+        支持:
+        - URL (http/https) -> 下载转 base64
+        - data URI (data:image/...) -> 直接用
+        - 本地文件路径 -> 读取转 base64
+        - 纯 base64 字符串 -> 补充 MIME type
+
+        返回: {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,..."}}
+        """
+        import os
+
+        value = self._interpolate(image_input, state)
+
+        if value.startswith("data:image"):
+            return {"type": "image_url", "image_url": {"url": value}}
+
+        if value.startswith("http://") or value.startswith("https://"):
+            image_data, mime_type = self._download_to_base64(value, "image/jpeg")
+            return {
+                "type": "image_url",
+                "image_url": {"url": f"data:{mime_type};base64,{image_data}"},
+            }
+
+        if os.path.exists(value):
+            image_data, mime_type = self._read_local_file_to_base64(value, "image/jpeg")
+            return {
+                "type": "image_url",
+                "image_url": {"url": f"data:{mime_type};base64,{image_data}"},
+            }
+
+        if self._is_base64(value):
+            mime_type = self._guess_mime_type_from_url(value, "image/jpeg")
+            return {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{value}"}}
+
+        return {"type": "image_url", "image_url": {"url": value}}
+
+    def _process_video(self, video_input: str, state: Dict[str, Any]) -> Dict:
+        """
+        处理视频输入
+
+        支持:
+        - URL (http/https) -> 直接用 URL
+        - data URI (data:video/...) -> 提取 base64
+        - 本地文件路径 -> 读取转 base64
+        - 纯 base64 字符串 -> 补充 MIME type (video/mp4)
+
+        返回: {"type": "video", "url": "..."} 或 {"type": "video", "base64": "...", "mime_type": "..."}
+        """
+        import os
+
+        value = self._interpolate(video_input, state)
+
+        if value.startswith("http://") or value.startswith("https://"):
+            return {"type": "video", "url": value}
+
+        if value.startswith("data:video"):
+            parts = value.split(",", 1)
+            if len(parts) == 2:
+                base64_data = parts[1]
+                mime_part = parts[0].split(":")[1].split(";")[0]
+                return {"type": "video", "base64": base64_data, "mime_type": mime_part}
+            return {"type": "video", "url": value}
+
+        if os.path.exists(value):
+            video_data, mime_type = self._read_local_file_to_base64(value, "video/mp4")
+            return {"type": "video", "base64": video_data, "mime_type": mime_type}
+
+        if self._is_base64(value):
+            return {"type": "video", "base64": value, "mime_type": "video/mp4"}
+
+        return {"type": "video", "url": value}
+
     def _build_messages(self, state: Dict[str, Any]) -> List:
-        """构建消息列表"""
+        """构建消息列表，支持多模态"""
         messages = []
 
         existing_messages = state.get("messages", [])
@@ -237,26 +358,24 @@ class LLMNode(BaseNode):
             messages.extend(existing_messages)
 
         if self.config.system_prompt:
-            try:
-                from langchain.messages import SystemMessage
+            content = [
+                {"type": "text", "text": self._interpolate(self.config.system_prompt, state)}
+            ]
+            messages.append(SystemMessage(content=content))
 
-                system_content = self._interpolate(self.config.system_prompt, state)
-                messages.append(SystemMessage(content=system_content))
-            except ImportError:
-                messages.append(
-                    {
-                        "role": "system",
-                        "content": self._interpolate(self.config.system_prompt, state),
-                    }
-                )
+        human_content = []
 
         if self.config.user_prompt:
-            user_content = self._interpolate(self.config.user_prompt, state)
-            try:
-                from langchain.messages import HumanMessage
+            text = self._interpolate(self.config.user_prompt, state)
+            human_content.append({"type": "text", "text": text})
 
-                messages.append(HumanMessage(content=user_content))
-            except ImportError:
-                messages.append({"role": "user", "content": user_content})
+        for image_input in self.config.image_list:
+            human_content.append(self._process_image(image_input, state))
+
+        for video_input in self.config.video_list:
+            human_content.append(self._process_video(video_input, state))
+
+        if human_content:
+            messages.append(HumanMessage(content=human_content))
 
         return messages
