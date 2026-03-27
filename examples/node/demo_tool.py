@@ -136,8 +136,8 @@ def main():
                     "user_prompt": "请帮我问候王五，然后告诉他北京今天的天气, 然后看一下 http://www.baidu.com 的热搜，和所有 url 链接",
                     "tools": ["greet", "get_weather", "web_fetch"],  # LLM 可用的工具列表
                     "output_key": "data.response",
-                    "base_url": "https://openproxy.zuoyebang.cc/openproxy/rp/v1/chat/completions",
-                    "api_key": "zyb-89e2dec39127dcaf0634b5d6591fac99@video",
+                    "base_url": "",
+                    "api_key": "",
                 },
             }
         ],
