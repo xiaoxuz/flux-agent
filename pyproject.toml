@@ -1,6 +1,6 @@
 [project]
 name = "flux-agent"
-version = "0.1.1"
+version = "0.2.0"
 description = "基于 LangGraph + LLM 的通用 Agent 编排框架"
 readme = "README.md"
 requires-python = ">=3.10"

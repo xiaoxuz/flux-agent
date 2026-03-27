@@ -6,11 +6,12 @@
 
 - **JSON 配置驱动** - 无需编写代码，通过 JSON 配置即可定义复杂工作流
 - **内置通用节点** - LLM 调用、条件分支、工具调用、HTTP 请求等开箱即用
+- **RAG 能力** - 知识库管理、向量检索、检索增强生成
+- **多模态支持** - 支持图片、视频输入
 - **可插拔扩展** - 用户可按规范开发自定义节点，注册即可使用
 - **并行执行** - 原生支持 map-reduce、并行处理等模式
 - **人工介入** - 支持工作流暂停、人工审核、断点恢复
 - **子图嵌套** - 支持将工作流作为子图嵌入其他工作流
-- **状态持久化** - 支持内存、SQLite、PostgreSQL 等多种存储后端
 
 ## 快速开始
 
@@ -20,16 +21,36 @@
 pip install flux-agent
 ```
 
-### 最简示例
+### RAG 知识库创建
+
+```python
+from flux_agent.rag import (
+    KnowledgeBase,
+    KnowledgeBaseConfig,
+    KnowledgeChunkConfig,
+    KnowledgeEmbeddingConfig,
+)
+
+config = KnowledgeBaseConfig(
+    name="my_docs",
+    persist_directory="./kb_data/my_docs",
+    embedding_config=KnowledgeEmbeddingConfig(
+        model="text-embedding-3-small",
+    )
+)
+
+kb = KnowledgeBase.create(name="my_docs", config=config)
+kb.add_texts(["知识库内容..."])
+kb.generate()
+```
+
+### 工作流执行
 
 ```python
 from flux_agent import WorkflowRunner
 
-# 从 JSON 配置加载工作流
 runner = WorkflowRunner("workflow.json")
-
-# 执行
-result = runner.invoke({"user_input": "你好"})
+result = runner.invoke({"data": {"input": "你好"}})
 print(result)
 ```
 
@@ -37,26 +58,20 @@ print(result)
 
 ```json
 {
-  "workflow": {
-    "name": "simple-chain",
-    "description": "简单的 LLM 调用链"
-  },
   "nodes": [
     {
-      "id": "greet",
-      "type": "LLMNode",
+      "id": "llm",
+      "type": "llm",
       "config": {
-        "model": "openai",
         "model_name": "gpt-4o",
-        "system_prompt": "你是一个友好的助手",
-        "user_prompt": "${data.user_input}",
-        "output_key": "data.response"
+        "system_prompt": "你是一个助手",
+        "user_prompt": "${data.input}"
       }
     }
   ],
   "edges": [
-    {"from": "START", "to": "greet"},
-    {"from": "greet", "to": "END"}
+    {"from": "START", "to": "llm"},
+    {"from": "llm", "to": "END"}
   ]
 }
 ```
@@ -65,7 +80,7 @@ print(result)
 
 | 节点类型 | 功能 | 说明 |
 |---------|------|------|
-| `LLMNode` | LLM 调用 | 支持 OpenAI、Anthropic、Gemini 等 |
+| `LLMNode` | LLM 调用 | 支持 OpenAI、Anthropic、Gemini，多模态输入 |
 | `ConditionNode` | 条件分支 | if/else、switch 分支路由 |
 | `ToolNode` | 工具调用 | 执行预定义的工具/函数 |
 | `TransformNode` | 数据转换 | set/get/filter/map 等操作 |
@@ -74,10 +89,12 @@ print(result)
 | `HTTPRequestNode` | HTTP 调用 | REST API 调用 |
 | `SubgraphNode` | 子图嵌套 | 嵌入其他工作流 |
 | `HumanInputNode` | 人工介入 | 暂停等待人工输入 |
+| `RagSearchNode` | RAG 检索 | 知识库向量检索 |
 
 ## 文档
 
 - [使用文档](./docs/USAGE.md) - 快速开始、API 参考、完整示例
+- [RAG 模块](./docs/RAG.md) - 知识库创建、检索、过滤
 - [配置参考](./docs/CONFIG_REFERENCE.md) - JSON 配置完整说明
 - [节点开发指南](./docs/NODE_DEVELOPMENT.md) - 自定义节点开发规范
 - [外部节点开发](./docs/EXTERNAL_NODES.md) - 独立包开发与注册
@@ -90,42 +107,45 @@ print(result)
 flux-agent/
 ├── flux_agent/               # 包目录
 │   ├── core/                 # 核心引擎
-│   │   ├── state.py          # 状态模型
-│   │   ├── registry.py       # 节点注册表
+│   │   ├── executor.py       # 执行引擎
 │   │   ├── parser.py         # 配置解析器
-│   │   └── executor.py       # 执行引擎
+│   │   ├── registry.py       # 节点注册表
+│   │   └── state.py          # 状态模型
 │   │
 │   ├── nodes/                # 节点模块
 │   │   ├── base/             # 基类层
 │   │   │   ├── node.py       # 节点基类
-│   │   │   ├── config.py     # 配置模型
-│   │   │   └── interfaces.py # 接口协议
+│   │   │   └── config.py     # 配置模型
 │   │   ├── builtin/          # 内置节点
 │   │   │   ├── control/      # condition, loop
-│   │   │   ├── llm/          # LLM 调用
+│   │   │   ├── llm/          # LLM 调用（支持多模态）
+│   │   │   ├── rag/          # RagSearchNode
 │   │   │   ├── transform/    # 数据转换
 │   │   │   └── io/           # http, tool, parallel, subgraph, human
-│   │   ├── examples/         # 示例节点
-│   │   └── business/         # 业务节点
+│   │   └── ...
+│   │
+│   ├── rag/                  # RAG 模块
+│   │   ├── knowledge_base.py # 知识库管理
+│   │   ├── document_loader.py # 文档加载
+│   │   ├── embeddings.py    # Embedding
+│   │   └── vector_store.py  # 向量存储
 │   │
 │   ├── utils/                # 工具函数
 │   │   └── expression.py     # 表达式解析
 │   │
 │   └── tools/                # 工具模块
 │
-├── examples/                 # 示例脚本（不发布）
-│   ├── demo_*.py
-│   └── *.json
+├── examples/                 # 示例脚本
+│   ├── rag/                 # RAG 示例
+│   └── demo_*.py
 │
-├── docs/                     # 文档（不发布）
-│   ├── TECHNICAL.md          # 技术架构
-│   ├── USAGE.md              # 使用指南
-│   ├── NODE_DEVELOPMENT.md   # 节点开发
-│   ├── EXTERNAL_NODES.md     # 外部节点注册
-│   └── CONFIG_REFERENCE.md   # 配置参考
+├── docs/                     # 文档
+│   ├── RAG.md               # RAG 模块指南
+│   ├── USAGE.md             # 使用指南
+│   ├── TECHNICAL.md         # 技术架构
+│   └── ...
 │
 ├── pyproject.toml            # 包配置
-├── LICENSE                   # MIT License
 ├── CHANGELOG.md              # 变更日志
 └── README.md
 ```
@@ -135,7 +155,11 @@ flux-agent/
 - Python >= 3.10
 - langgraph >= 0.3
 - langchain-core >= 0.3
+- langchain-chroma >= 0.1
 - pydantic >= 2.0
+
+可选依赖：
+- `faiss-cpu` - FAISS 向量存储
 
 ## License
 

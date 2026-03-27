@@ -17,7 +17,6 @@ example_dir = Path(__file__).parent
 
 from flux_agent import WorkflowRunner
 from flux_agent.nodes.base import BaseNode, NodeConfig
-from flux_agent.core.registry import NodeRegistry
 
 def example_input_hook(node_id, state):
     # print(f"[IN]>>>>>>>>>>>>>> {node_id}: {state.get('data', {})}")
@@ -29,7 +28,6 @@ def example_output_hook(node_id, state, output):
     pass
 
 def main():
-    # NodeRegistry.register_node("save_answer", SaveAnswerNode)
 
     runner = WorkflowRunner(
         config_path=str(example_dir / "custom_nodes.json"), 

@@ -11,7 +11,7 @@ from pathlib import Path
 import json
 
 from flux_agent import WorkflowRunner
-from flux_agent import tools
+from flux_agent import utils
 
 def greet(name: str) -> str:
     """生成问候语"""
@@ -91,7 +91,7 @@ def main():
     print(f"回答: {result.get('data', {}).get('response', {})}")
     print("=" * 50)
     # print(dumps(result, pretty=True))
-    print(tools.pretty_state(result))
+    print(utils.pretty_state(result))
 
 
 if __name__ == "__main__":

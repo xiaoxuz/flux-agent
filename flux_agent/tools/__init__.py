@@ -2,6 +2,6 @@
 """
 工具模块
 """
-from .pretty_state import pretty_state
+from .web_fetch import web_fetch
 
-__all__ = ["pretty_state"]
+__all__ = ["web_fetch"]

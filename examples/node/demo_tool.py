@@ -122,6 +122,7 @@ def main():
     # 方式3：LLMNode + tools（LLM 自动决定调用哪个工具）
     print("\n" + "=" * 60)
     print("【方式3：LLMNode + tools（LLM 自动调用工具）】\n")
+    from flux_agent.tools.web_fetch import web_fetch
 
     llm_config = {
         "workflow": {"name": "llm-tool-demo"},
@@ -130,13 +131,13 @@ def main():
                 "id": "llm_agent",
                 "type": "LLMNode",
                 "config": {
-                    "model_name": "MiniMax-M2.5",
+                    "model_name": "gpt-4o",
                     "system_prompt": "你是一个助手，可以使用工具来帮助用户。",
-                    "user_prompt": "请帮我问候王五，然后告诉他北京今天的天气",
-                    "tools": ["greet", "get_weather"],  # LLM 可用的工具列表
+                    "user_prompt": "请帮我问候王五，然后告诉他北京今天的天气, 然后看一下 http://www.baidu.com 的热搜，和所有 url 链接",
+                    "tools": ["greet", "get_weather", "web_fetch"],  # LLM 可用的工具列表
                     "output_key": "data.response",
-                    "base_url": "",
-                    "api_key": "",
+                    "base_url": "https://openproxy.zuoyebang.cc/openproxy/rp/v1/chat/completions",
+                    "api_key": "zyb-89e2dec39127dcaf0634b5d6591fac99@video",
                 },
             }
         ],
@@ -144,7 +145,7 @@ def main():
     }
 
     llm_runner = WorkflowRunner(
-        config_dict=llm_config, tools={"greet": greet, "get_weather": get_weather}
+        config_dict=llm_config, tools={"greet": greet, "get_weather": get_weather, "web_fetch": web_fetch}
     )
 
     llm_result = llm_runner.invoke({"data": {}})

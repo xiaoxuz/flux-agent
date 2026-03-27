@@ -12,7 +12,7 @@ import json
 
 from flux_agent import WorkflowRunner
 from flux_agent.rag import KnowledgeBaseConfig, KnowledgeEmbeddingConfig
-from flux_agent.tools import pretty_state
+from flux_agent.utils import pretty_state
 import logging
 APIKEY = ""
 BASEURL = ""
