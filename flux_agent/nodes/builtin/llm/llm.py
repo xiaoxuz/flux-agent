@@ -29,8 +29,8 @@ class LLMNodeConfig(NodeConfig):
     temperature: float = 0.0
     max_tokens: int = 4096
     tools: List[str] = field(default_factory=list)
-    image_list: List[str] = field(default_factory=list)  # 图片 URL 列表
-    video_list: List[str] = field(default_factory=list)  # 视频 URL 列表（仅 mp4）
+    image_list: List[str] = field(default_factory=list)
+    video_list: List[str] = field(default_factory=list)
     tool_choice: str = "auto"
     parallel_tool_calls: bool = True
     response_format: Optional[Dict] = None
@@ -39,6 +39,11 @@ class LLMNodeConfig(NodeConfig):
     api_key: str = ""
     save_to_messages: bool = True
     max_tool_iterations: int = 10
+    knowledge_base: str = ""
+    rag_top_k: int = 2
+    rag_score_threshold: float = 0.0
+    rag_context_key: str = "rag_context"
+    rag_mode: str = "append"
 
 
 class LLMNode(BaseNode):
@@ -166,7 +171,9 @@ class LLMNode(BaseNode):
             return f"Error executing {tool_name}: {str(e)}"
 
     def execute(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """执行 LLM 调用，支持工具自动执行"""
+        """执行 LLM 调用，支持工具自动执行和 RAG"""
+        state = self._rag_retrieve(state)
+
         llm = self._get_llm()
 
         if self.config.tools and self._bound_tools is None:
@@ -349,6 +356,95 @@ class LLMNode(BaseNode):
 
         return {"type": "video", "url": value}
 
+    def _rag_retrieve(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """RAG 检索"""
+        if not self.config.knowledge_base:
+            return state
+
+        try:
+            from flux_agent.rag import get_knowledge_base
+        except ImportError:
+            logger.warning("RAG 模块未安装，跳过检索")
+            return state
+
+        kb = get_knowledge_base(self.config.knowledge_base)
+        if not kb:
+            logger.warning(f"知识库 {self.config.knowledge_base} 未找到，跳过检索")
+            return state
+
+        user_prompt = self._interpolate(self.config.user_prompt, state)
+        if not user_prompt:
+            return state
+
+        if self.config.rag_score_threshold > 0:
+            try:
+                docs_with_score = kb.similarity_search_with_score(
+                    query=user_prompt,
+                    k=self.config.rag_top_k,
+                )
+                # for _doc in docs_with_score:
+                #     logger.info(f"知识库检索结果: {str(_doc)}")
+                docs = [
+                    doc
+                    for doc, score in docs_with_score
+                    if score >= self.config.rag_score_threshold
+                ]
+                if not docs:
+                    logger.info(f"知识库检索结果分数均低于阈值 {self.config.rag_score_threshold}")
+                    return state
+            except Exception:
+                pass
+        else:
+            docs = kb.search(
+                query=user_prompt,
+                k=self.config.rag_top_k,
+            )
+
+        if not docs:
+            logger.info(f"知识库 {self.config.knowledge_base} 未检索到相关文档")
+            return state
+
+        context_text = "\n\n".join(f"[{i+1}] {doc.page_content}" for i, doc in enumerate(docs))
+
+        if self.config.rag_mode == "prepend":
+            state = self._set_nested(
+                state,
+                self.config.rag_context_key,
+                context_text,
+            )
+            state = self._set_nested(
+                state,
+                self.config.rag_context_key + "_docs",
+                [{"page_content": doc.page_content, "metadata": doc.metadata} for doc in docs],
+            )
+
+        elif self.config.rag_mode == "append":
+            state = self._set_nested(
+                state,
+                self.config.rag_context_key,
+                context_text,
+            )
+            state = self._set_nested(
+                state,
+                self.config.rag_context_key + "_docs",
+                [{"page_content": doc.page_content, "metadata": doc.metadata} for doc in docs],
+            )
+
+        elif self.config.rag_mode == "replace":
+            state = self._set_nested(
+                state,
+                self.config.rag_context_key,
+                context_text,
+            )
+            state = self._set_nested(
+                state,
+                self.config.rag_context_key + "_docs",
+                [{"page_content": doc.page_content, "metadata": doc.metadata} for doc in docs],
+            )
+
+        logger.info(f"RAG 检索完成: 知识库={self.config.knowledge_base}, 结果数={len(docs)}")
+        return state
+
     def _build_messages(self, state: Dict[str, Any]) -> List:
         """构建消息列表，支持多模态"""
         messages = []
@@ -365,9 +461,22 @@ class LLMNode(BaseNode):
 
         human_content = []
 
+        user_text = ""
         if self.config.user_prompt:
-            text = self._interpolate(self.config.user_prompt, state)
-            human_content.append({"type": "text", "text": text})
+            user_text = self._interpolate(self.config.user_prompt, state)
+
+        context = self._get_nested(state, self.config.rag_context_key)
+
+        if context and self.config.knowledge_base:
+            if self.config.rag_mode == "prepend":
+                user_text = f"{context}\n\n---\n\n用户问题: {user_text}"
+            elif self.config.rag_mode == "append":
+                user_text = f"{user_text}\n\n---\n\n参考信息:\n{context}"
+            elif self.config.rag_mode == "replace":
+                user_text = user_text.replace("{context}", context)
+
+        if user_text:
+            human_content.append({"type": "text", "text": user_text})
 
         for image_input in self.config.image_list:
             human_content.append(self._process_image(image_input, state))

@@ -48,7 +48,7 @@ def main():
     )
 
     result = runner.invoke(
-        {"data": {"user_input": "你好，请用一句话介绍你自己"}, "context":{"task_id":"17441004694569588072"}}
+        {"data": {"user_input": "你好，请用一句话介绍你自己"}, "context":{"task_id":"7441004694569588072"}}
     )
 
     print("工作流执行完成！")

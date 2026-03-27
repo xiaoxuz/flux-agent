@@ -4,6 +4,7 @@ Flux-Agent: 基于 LangGraph + LLM 的通用 Agent 编排框架
 
 通过 JSON 配置文件即可启动多 Agent Node 工作流。
 """
+
 from .core import (
     WorkflowRunner,
     NodeRegistry,
@@ -27,6 +28,13 @@ from .nodes import (
     HumanInputNode,
 )
 from .utils import evaluate_condition, ExpressionEvaluator
+from .rag import (
+    KnowledgeBase,
+    add_knowledge_base,
+    get_knowledge_base,
+    list_knowledge_bases,
+    clear_knowledge_bases,
+)
 
 
 __version__ = "0.1.1"
@@ -53,4 +61,9 @@ __all__ = [
     "HumanInputNode",
     "evaluate_condition",
     "ExpressionEvaluator",
+    "KnowledgeBase",
+    "add_knowledge_base",
+    "get_knowledge_base",
+    "list_knowledge_bases",
+    "clear_knowledge_bases",
 ]

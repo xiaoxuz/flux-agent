@@ -20,6 +20,7 @@ from .io import (
     HumanInputNode,
     HumanInputNodeConfig,
 )
+from .rag import RagSearchNode, RagSearchNodeConfig
 
 
 # 内置节点映射表
@@ -46,6 +47,9 @@ BUILTIN_NODES = {
     "SubgraphNode": SubgraphNode,
     "human_input": HumanInputNode,
     "HumanInputNode": HumanInputNode,
+    # RAG
+    "rag_search": RagSearchNode,
+    "RagSearchNode": RagSearchNode,
 }
 
 
@@ -72,6 +76,9 @@ __all__ = [
     "SubgraphNodeConfig",
     "HumanInputNode",
     "HumanInputNodeConfig",
+    # RAG
+    "RagSearchNode",
+    "RagSearchNodeConfig",
     # 映射表
     "BUILTIN_NODES",
 ]

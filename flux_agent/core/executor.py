@@ -26,6 +26,7 @@ class WorkflowRunner:
         config_dict: Dict[str, Any] = None,
         custom_nodes: Dict[str, type] = None,
         tools: Dict[str, Any] = None,
+        knowledge_bases: Dict[str, Any] = None,
         on_node_input: callable = None,
         on_node_output: callable = None,
     ):
@@ -46,6 +47,20 @@ class WorkflowRunner:
         self._parsed = None
         self._graph = None
         self._checkpointer = None
+
+        if knowledge_bases:
+            self._load_knowledge_bases(knowledge_bases)
+
+    def _load_knowledge_bases(self, knowledge_bases: Dict[str, Any]):
+        """加载知识库到全局存储"""
+        from flux_agent.rag import KnowledgeBase, add_knowledge_base
+
+        for name, kb_config in knowledge_bases.items():
+            try:
+                add_knowledge_base(name, KnowledgeBase.load(name=name, config=kb_config))
+                logger.info(f"已加载知识库: {name}")
+            except Exception as e:
+                logger.warning(f"加载知识库失败: {name}, 错误: {e}")
 
     def _load_config_from_file(self, path: str) -> Dict[str, Any]:
         config_path = Path(path)
