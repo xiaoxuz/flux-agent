@@ -198,6 +198,79 @@ data.value is null
 }
 ```
 
+### 3.9 LoopNode
+
+```json
+{
+  "id": "process_loop",
+  "type": "LoopNode",
+  "config": {
+    "input_key": "data.items",
+    "results_key": "data.results",
+    "subgraph_item_key": "data.item",
+    "subgraph_meta_key": "data.meta",
+    "subgraph_result_path": "data.result",
+    "body_nodes": [...],
+    "body_edges": [...],
+    "body_entry_point": "process",
+    "max_iterations": 10,
+    "parallel": false,
+    "parallel_max_workers": 5,
+    "delay": 0,
+    "on_error": "raise",
+    "emit_progress": true
+  }
+}
+```
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `input_key` | str | "data.items" | 主流程 state 中要遍历的数组路径 |
+| `results_key` | str | "data.results" | 所有迭代结果写入主流程 state 的路径 |
+| `subgraph_item_key` | str | "data.item" | 子图接收当前 item 的路径 |
+| `subgraph_meta_key` | str | "data.meta" | 子图接收循环元信息的路径，设为空则不注入 |
+| `subgraph_result_path` | str | "" | 从子图最终 state 中提取结果的路径，为空则取整个 state |
+| `body_nodes` | list | [] | 子图节点配置列表 |
+| `body_edges` | list | [] | 子图边配置列表 |
+| `body_entry_point` | str | "" | 子图入口节点 ID |
+| `max_iterations` | int | 0 | 最大迭代次数，<=0 不限制 |
+| `parallel` | bool | false | 是否并行执行 |
+| `parallel_max_workers` | int | 5 | 并行执行的最大线程数 |
+| `delay` | float | 0 | 串行模式下每轮延迟(秒) |
+| `on_error` | str | "raise" | 错误处理：raise 抛出 / skip 跳过 |
+| `emit_progress` | bool | true | 是否发出进度事件 |
+
+**子图 state 结构：**
+
+子图每次执行时收到的 state 完全隔离，只包含：
+```python
+{
+    "data": {
+        "item": <当前元素>,           # 由 subgraph_item_key 指定
+        "meta": {                     # 由 subgraph_meta_key 指定（可选）
+            "index": 0,               # 当前索引 (0-based)
+            "total": 5,               # 总数
+            "is_first": true,         # 是否第一个
+            "is_last": false          # 是否最后一个
+        }
+    }
+}
+```
+
+**子图引用主流程 tools：**
+
+在 body_nodes 中可以直接引用主流程已定义的 tools：
+```json
+{
+  "id": "call_tool",
+  "type": "tool",
+  "config": {
+    "tool_name": "my_tool",
+    "args": {"query": "${data.item}"}
+  }
+}
+```
+
 ---
 
 ## 四、edges 字段

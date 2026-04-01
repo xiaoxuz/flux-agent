@@ -27,7 +27,7 @@ class LLMNodeConfig(NodeConfig):
     user_prompt: str = ""
     output_key: str = "data.output"
     temperature: float = 0.0
-    max_tokens: int = 4096
+    max_tokens: int = 8000
     tools: List[str] = field(default_factory=list)
     image_list: List[str] = field(default_factory=list)
     video_list: List[str] = field(default_factory=list)
@@ -204,7 +204,7 @@ class LLMNode(BaseNode):
             result = response.content
         else:
             result = str(response)
-
+        
         if self.config.response_format and self.config.response_format.get("type") == "json_object":
             if isinstance(result, str):
                 try:

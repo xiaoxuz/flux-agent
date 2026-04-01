@@ -1,0 +1,148 @@
+{
+	"workflow": {
+		"name": "question-script",
+		"description": "生成讲解脚本"
+	},
+	"nodes": [
+		{
+			"id": "get_tid_info",
+			"type": "HTTPRequestNode",
+			"config": {
+				"url": "http://xxx",
+				"method": "GET",
+				"output_key": "data.tid_info",
+				"params": {
+					"tid": "${data.tid}",
+					"grade":2,
+					"course":2,
+					"show_question": true,
+					"source": 100
+				},
+				"timeout": 10
+			}
+		},
+		{
+			"id": "check_http_result",
+			"type": "ConditionNode",
+			"config": {
+				"branches": [
+					{
+						"condition": "data.tid_info.errNo == 0",
+						"target": "set_question_answer"
+					},
+					{
+						"condition": "default",
+						"target": "END"
+					}
+				]
+			}
+		},
+		{
+			"id": "set_question_answer",
+			"type": "TransformNode",
+			"config": {
+				"transforms": [
+					{
+						"action": "set",
+						"key": "data.question",
+						"value": "1+1?"
+					},
+					{
+						"action": "set",
+						"key": "data.answer",
+						"value": "2"
+					}
+				]
+			}
+		},
+		{
+			"id": "gen_script",
+			"type": "LLMNode",
+			"config": {
+				"model": "openai",
+				"model_name": "gpt-4.1",
+				"system_prompt": "你是一个解题大师，你要根据题目和答案生成一个视频讲解脚本, 返回脚本json 结构，格式是 :{\"result\": [{\"序号\":\"镜头1\", \"屏幕内容\":\"xxxx\", \"旁白\":\"xxxx\"},  {\"序号\":\"镜头2\",\"屏幕内容\":\"xxxx\", \"旁白\":\"xxxx\"}]}",
+				"user_prompt": "题目:${data.question} \n 答案:${data.answer}",
+				"output_key": "data.script_raw",
+				"base_url": "",
+				"api_key": "",
+				"save_to_messages": true,
+				"response_format": {
+					"type": "json_object"
+				}
+			},
+			"retry_policy": {
+				"max_attempts": 3,
+				"initial_interval": 1.0,
+				"max_interval": 10.0,
+				"backoff_multiplier": 2.0,
+				"retry_on": [
+					"ConnectionError",
+					"TimeoutError",
+					"TypeError"
+				]
+			}
+		},
+		{
+			"id": "loop_tts",
+			"type": "loop",
+			"config": {
+				"input_key": "data.script_raw.result",
+				"results_key": "data.script_result",
+				"subgraph_item_key": "data.item",
+				"subgraph_meta_key": "data.meta",
+				"subgraph_result_path": "data.script_item",
+
+				"body_nodes": [
+					{
+						"id": "build_tts",
+						"type": "transform",
+						"config": {
+							"transforms": [
+								{
+									"action": "set",
+									"key": "data.script_item",
+									"value": "tts:::::::${data.item.旁白}"
+								}
+							]
+						}
+					}
+				],
+				"body_edges": [
+					{"from": "START", "to": "build_tts"},
+					{"from": "build_tts", "to": "END"}
+				],
+				"body_entry_point": "build_tts"
+			}
+		}
+
+	],
+	"edges": [
+		{
+			"from": "START",
+			"to": "get_tid_info"
+		},
+		{
+			"from": "get_tid_info",
+			"to": "check_http_result"
+		},
+		{
+			"from": "check_http_result",
+			"condition_map": {
+				"set_question_answer": "set_question_answer"
+			}
+		},
+		{
+			"from": "set_question_answer",
+			"to": "gen_script"
+		},
+		{
+			"from": "gen_script",
+			"to": "loop_tts"
+		},
+		{
+			"from": "loop_tts",
+			"to": "END"
+		}
+	]
+}

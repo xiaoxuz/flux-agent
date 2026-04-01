@@ -334,6 +334,108 @@ data.value is null
 }
 ```
 
+### 4.8 LoopNode - 循环迭代
+
+LoopNode 用于循环遍历数组，对每个元素执行子图（body_nodes + body_edges），并收集所有子图结果。
+
+**基本用法：**
+
+```json
+{
+  "id": "process_loop",
+  "type": "loop",
+  "config": {
+    "input_key": "data.items",
+    "results_key": "data.results",
+    "subgraph_item_key": "data.item",
+    "subgraph_result_path": "data.output",
+    
+    "body_nodes": [
+      {
+        "id": "transform_item",
+        "type": "transform",
+        "config": {
+          "transforms": [
+            {"action": "set", "key": "data.output", "value": "${data.item} * 2"}
+          ]
+        }
+      }
+    ],
+    "body_edges": [
+      {"from": "START", "to": "transform_item"},
+      {"from": "transform_item", "to": "END"}
+    ]
+  }
+}
+```
+
+**子图 state 变量：**
+
+| 变量 | 说明 |
+|------|------|
+| `${data.item}` | 当前遍历的元素 |
+| `${data.meta.index}` | 当前索引 (0-based) |
+| `${data.meta.total}` | 总数 |
+| `${data.meta.is_first}` | 是否第一个 |
+| `${data.meta.is_last}` | 是否最后一个 |
+
+**并行执行：**
+
+```json
+{
+  "id": "parallel_loop",
+  "type": "loop",
+  "config": {
+    "input_key": "data.items",
+    "results_key": "data.results",
+    "subgraph_item_key": "data.item",
+    "subgraph_result_path": "data.output",
+    "parallel": true,
+    "parallel_max_workers": 3,
+    
+    "body_nodes": [...],
+    "body_edges": [...]
+  }
+}
+```
+
+**错误处理：**
+
+```json
+{
+  "id": "safe_loop",
+  "type": "loop",
+  "config": {
+    "input_key": "data.items",
+    "results_key": "data.results",
+    "on_error": "skip",
+    
+    "body_nodes": [...],
+    "body_edges": [...]
+  }
+}
+```
+
+- `on_error: "raise"` - 遇到错误立即抛出（默认）
+- `on_error: "skip"` - 遇到错误跳过该项，结果中包含 `_error` 字段
+
+**限制迭代次数：**
+
+```json
+{
+  "id": "limited_loop",
+  "type": "loop",
+  "config": {
+    "input_key": "data.items",
+    "results_key": "data.results",
+    "max_iterations": 5,
+    
+    "body_nodes": [...],
+    "body_edges": [...]
+  }
+}
+```
+
 ---
 
 ## 五、条件边与退出
