@@ -1,6 +1,6 @@
 [project]
 name = "flux-agent"
-version = "0.2.0"
+version = "0.2.2"
 description = "基于 LangGraph + LLM 的通用 Agent 编排框架"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -24,18 +24,41 @@ classifiers = [
 dependencies = [
     "langgraph>=0.3.0",
     "langchain-core>=0.3.0",
-    "langchain-openai>=0.2.0",
-    "langchain-anthropic>=0.3.0",
-    "langchain-google-genai>=2.0.0",
-    "langchain-community>=0.3.0",
-    "langchain-chroma>=0.1.0",
-    "langchain-text-splitters>=0.3.0",
     "pydantic>=2.0",
     "requests>=2.28.0",
     "httpx>=0.27.0",
 ]
 
 [project.optional-dependencies]
+# 完整功能
+all = [
+    "flux-agent[core,openai,anthropic,google,chroma,faiss,dev]",
+]
+
+# 各 LLM 提供商（按需选择安装）
+openai = ["langchain-openai>=0.2.0"]
+anthropic = ["langchain-anthropic>=0.3.0"]
+google = ["langchain-google-genai>=2.0.0"]
+
+# 向量存储（用于 RAG）
+chroma = ["langchain-chroma>=0.1.0"]
+faiss = ["faiss-cpu>=1.7.0"]
+
+# 完整 LLM 支持
+llms = [
+    "langchain-openai>=0.2.0",
+    "langchain-anthropic>=0.3.0",
+    "langchain-google-genai>=2.0.0",
+]
+
+# 完整 RAG 支持
+rag = [
+    "langchain-chroma>=0.1.0",
+    "langchain-text-splitters>=0.3.0",
+    "faiss-cpu>=1.7.0",
+]
+
+# 开发依赖
 dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.21.0",
@@ -45,13 +68,6 @@ dev = [
     "mypy>=1.0",
     "build>=1.0",
     "twine>=4.0",
-]
-rag = [
-    "faiss-cpu>=1.7.0",
-]
-all = [
-    "flux-agent[dev]",
-    "flux-agent[rag]",
 ]
 
 [project.urls]

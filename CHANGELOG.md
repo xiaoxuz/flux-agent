@@ -5,6 +5,80 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2025-04-02
+
+### Added
+
+- **LoopNode v3 - 循环迭代节点重构**：
+  - 重新设计为基于子图的循环迭代节点
+  - 子图 state 与主流程完全隔离（深拷贝输入）
+  - 支持串行和并行执行
+  - 支持 `max_iterations` 限制迭代次数
+  - 支持 `on_error` 错误处理（raise/skip）
+  - 支持 `emit_progress` 进度通知
+  - 子图可引用主流程定义的 tools
+  - 支持 `delay` 配置每轮延迟
+
+- **LoopNode 配置参数**：
+  - `input_key`: 主流程 state 中要遍历的数组路径
+  - `results_key`: 所有迭代结果写入主流程 state 的路径
+  - `subgraph_item_key`: 子图接收当前 item 的路径
+  - `subgraph_meta_key`: 子图接收循环元信息的路径
+  - `subgraph_result_path`: 从子图 state 提取结果的路径
+  - `body_nodes` / `body_edges` / `body_entry_point`: 子图定义
+
+### Documentation
+
+- `CONFIG_REFERENCE.md` - 添加 LoopNode 完整配置参数
+- `NODE_DEVELOPMENT.md` - 添加 LoopNode 节点开发指南
+- `USAGE.md` - 添加 LoopNode 使用说明
+- 示例 `examples/node/demo_loop.py` - 7 个完整示例
+
+### Changed
+
+- **依赖拆分优化**：按需安装，减小基础包体积
+  - 核心依赖：langgraph, langchain-core, pydantic, requests, httpx
+  - 可选 LLM：`openai`, `anthropic`, `google`
+  - 可选向量存储：`chroma`, `faiss`
+  - 安装方式：`pip install flux-agent[openai,rag]`
+
+## [0.2.1] - 2025-04-01
+
+### Added
+
+- **LoopNode v3 - 循环迭代节点重构**：
+  - 重新设计为基于子图的循环迭代节点
+  - 子图 state 与主流程完全隔离（深拷贝输入）
+  - 支持串行和并行执行
+  - 支持 `max_iterations` 限制迭代次数
+  - 支持 `on_error` 错误处理（raise/skip）
+  - 支持 `emit_progress` 进度通知
+  - 子图可引用主流程定义的 tools
+  - 支持 `delay` 配置每轮延迟
+
+- **LoopNode 配置参数**：
+  - `input_key`: 主流程 state 中要遍历的数组路径
+  - `results_key`: 所有迭代结果写入主流程 state 的路径
+  - `subgraph_item_key`: 子图接收当前 item 的路径
+  - `subgraph_meta_key`: 子图接收循环元信息的路径
+  - `subgraph_result_path`: 从子图 state 提取结果的路径
+  - `body_nodes` / `body_edges` / `body_entry_point`: 子图定义
+
+### Documentation
+
+- `CONFIG_REFERENCE.md` - 添加 LoopNode 完整配置参数
+- `NODE_DEVELOPMENT.md` - 添加 LoopNode 节点开发指南
+- `USAGE.md` - 添加 LoopNode 使用说明
+- 示例 `examples/node/demo_loop.py` - 7 个完整示例
+
+### Changed
+
+- **依赖拆分优化**：按需安装，减小基础包体积
+  - 核心依赖：langgraph, langchain-core, pydantic, requests, httpx
+  - 可选 LLM：`openai`, `anthropic`, `google`
+  - 可选向量存储：`chroma`, `faiss`
+  - 安装方式：`pip install flux-agent[openai,rag]`
+
 ## [0.2.0] - 2025-03-27
 
 ### Added

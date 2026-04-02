@@ -17,9 +17,43 @@
 
 ### 安装
 
+**基础安装（仅核心）：**
 ```bash
 pip install flux-agent
 ```
+
+**按需安装额外依赖：**
+
+```bash
+# OpenAI LLM 支持
+pip install flux-agent[openai]
+
+# Anthropic LLM 支持
+pip install flux-agent[anthropic]
+
+# Google LLM 支持
+pip install flux-agent[google]
+
+# 多个 LLM 提供商
+pip install flux-agent[openai,anthropic]
+
+# RAG 能力（向量存储）
+pip install flux-agent[rag]
+
+# 完整安装（所有功能）
+pip install flux-agent[all]
+```
+
+| 安装选项 | 包含内容 |
+|---------|---------|
+| `openai` | OpenAI GPT 系列模型 |
+| `anthropic` | Anthropic Claude 系列模型 |
+| `google` | Google Gemini 系列模型 |
+| `chroma` | Chroma 向量数据库 |
+| `faiss` | FAISS 向量检索 |
+| `rag` | 完整 RAG 支持 (chroma + text-splitters + faiss) |
+| `llms` | 所有 LLM 提供商 |
+| `all` | 全部功能 |
 
 ### RAG 知识库创建
 
