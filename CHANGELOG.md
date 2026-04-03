@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2025-04-03
+
+### Added
+
+- **JsonNode - JSON 编解码节点**：
+  - `encode`: Python 对象 → JSON 字符串
+  - `decode`: JSON 字符串 → Python 对象
+  - 支持 `indent` 缩进控制
+  - 支持 `ensure_ascii` 中文编码控制
+  - 支持 `error_on_fail` 错误处理
+
+- **示例文件**：`examples/node/demo_json.py` - 6 个完整示例
+
+### Fixed
+
+- **变量插值保留原始类型**：
+  - 修复 `_interpolate_dict` 和 `_interpolate_value` 将 list/dict 转为字符串的问题
+  - 纯变量引用 `${data.items}` 现在会保留原始类型
+  - 新增 `_try_get_raw_value` 方法统一处理
+
+- **RAG 模块延迟导入**：
+  - `langchain-text-splitters` 改为延迟导入
+  - 默认安装不会因缺少该依赖而报错
+  - 使用时提示安装 `pip install 'flux-agent[rag]'`
+
+### Documentation
+
+- `CONFIG_REFERENCE.md` - 添加 JsonNode 配置说明
+- `USAGE.md` - 添加 JsonNode 使用示例
+- `README.md` - 内置节点表格添加 JsonNode
+
 ## [0.2.2] - 2025-04-02
 
 ### Added

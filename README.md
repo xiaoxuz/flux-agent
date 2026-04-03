@@ -118,6 +118,7 @@ print(result)
 | `ConditionNode` | 条件分支 | if/else、switch 分支路由 |
 | `ToolNode` | 工具调用 | 执行预定义的工具/函数 |
 | `TransformNode` | 数据转换 | set/get/filter/map 等操作 |
+| `JsonNode` | JSON 编解码 | encode/decode JSON 数据 |
 | `LoopNode` | 循环执行 | for/while 循环控制 |
 | `ParallelNode` | 并行执行 | map-reduce 模式 |
 | `HTTPRequestNode` | HTTP 调用 | REST API 调用 |
@@ -127,13 +128,12 @@ print(result)
 
 ## 文档
 
-- [使用文档](./docs/USAGE.md) - 快速开始、API 参考、完整示例
-- [RAG 模块](./docs/RAG.md) - 知识库创建、检索、过滤
-- [配置参考](./docs/CONFIG_REFERENCE.md) - JSON 配置完整说明
-- [节点开发指南](./docs/NODE_DEVELOPMENT.md) - 自定义节点开发规范
-- [外部节点开发](./docs/EXTERNAL_NODES.md) - 独立包开发与注册
-- [开发指南](./docs/DEVELOPMENT.md) - 开发、测试、发布流程
-- [技术架构](./docs/TECHNICAL.md) - 架构设计、核心概念
+- [使用文档](https://github.com/xiaoxuz/flux-agent/blob/main/docs/USAGE.md) - 快速开始、API 参考、完整示例
+- [RAG 模块](https://github.com/xiaoxuz/flux-agent/blob/main/docs/RAG.md) - 知识库创建、检索、过滤
+- [配置参考](https://github.com/xiaoxuz/flux-agent/blob/main/docs/CONFIG_REFERENCE.md) - JSON 配置完整说明
+- [节点开发指南](https://github.com/xiaoxuz/flux-agent/blob/main/docs/NODE_DEVELOPMENT.md) - 自定义节点开发规范
+- [开发指南](https://github.com/xiaoxuz/flux-agent/blob/main/docs/DEVELOPMENT.md) - 开发、测试、发布流程
+- [技术架构](https://github.com/xiaoxuz/flux-agent/blob/main/docs/TECHNICAL.md) - 架构设计、核心概念
 
 ## 项目结构
 

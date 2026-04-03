@@ -272,7 +272,63 @@ data.value is null
 | `filter` | 过滤列表 |
 | `format` | 格式化字符串 |
 
-### 4.4 ToolNode - 工具调用
+### 4.4 JsonNode - JSON 编解码
+
+```json
+{
+  "id": "json",
+  "type": "JsonNode",
+  "config": {
+    "action": "encode",
+    "input_key": "data.obj",
+    "output_key": "data.json_str",
+    "indent": 2,
+    "ensure_ascii": false
+  }
+}
+```
+
+**编码：**
+
+```json
+{
+  "id": "encode",
+  "type": "JsonNode",
+  "config": {
+    "action": "encode",
+    "input_key": "data.user",
+    "output_key": "data.json",
+    "indent": 2,
+    "ensure_ascii": false
+  }
+}
+```
+
+**解码：**
+
+```json
+{
+  "id": "decode",
+  "type": "JsonNode",
+  "config": {
+    "action": "decode",
+    "input_key": "data.json",
+    "output_key": "data.obj",
+    "error_on_fail": false,
+    "default": {}
+  }
+}
+```
+
+| 参数 | 说明 |
+|------|------|
+| `action` | `encode` 编码 / `decode` 解码 |
+| `indent` | 编码缩进，默认 2 |
+| `ensure_ascii` | 是否转义中文，默认 false |
+| `default` | 解码失败时的默认值 |
+| `error_on_fail` | 失败时是否抛出错误，默认 true |
+
+### 4.5 ToolNode - 工具调用
 
 ```json
 {
@@ -288,7 +344,7 @@ data.value is null
 }
 ```
 
-### 4.5 HTTPRequestNode - HTTP 调用
+### 4.6 HTTPRequestNode - HTTP 调用
 
 ```json
 {
@@ -305,7 +361,7 @@ data.value is null
 }
 ```
 
-### 4.6 HumanInputNode - 人工介入
+### 4.7 HumanInputNode - 人工介入
 
 ```json
 {
@@ -320,7 +376,7 @@ data.value is null
 }
 ```
 
-### 4.7 SubgraphNode - 子图嵌套
+### 4.8 SubgraphNode - 子图嵌套
 
 ```json
 {
@@ -334,7 +390,7 @@ data.value is null
 }
 ```
 
-### 4.8 LoopNode - 循环迭代
+### 4.9 LoopNode - 循环迭代
 
 LoopNode 用于循环遍历数组，对每个元素执行子图（body_nodes + body_edges），并收集所有子图结果。
 

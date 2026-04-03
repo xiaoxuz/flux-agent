@@ -41,6 +41,8 @@ from .builtin import (
     # 数据处理
     TransformNode,
     TransformNodeConfig,
+    JsonNode,
+    JsonNodeConfig,
     # IO
     HTTPRequestNode,
     HTTPRequestNodeConfig,
@@ -79,6 +81,8 @@ __all__ = [
     # 数据处理节点
     "TransformNode",
     "TransformNodeConfig",
+    "JsonNode",
+    "JsonNodeConfig",
     # IO 节点
     "HTTPRequestNode",
     "HTTPRequestNodeConfig",

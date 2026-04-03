@@ -54,7 +54,8 @@ def main():
                     "transforms": [
                         {"action": "set", "key": "data.config", "value": {"debug": False}},
                         {"action": "merge", "key": "data.config", "value": {"timeout": 30}},
-                        {"action": "merge", "key": "data.config", "value": {"debug": True}}
+                        {"action": "merge", "key": "data.config", "value": {"debug": True}},
+                        {"action": "merge", "key": "data.config", "value": {"context": "${data.tags}"}}
                     ]
                 }
             }

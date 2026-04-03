@@ -135,7 +135,44 @@ data.value is null
 }
 ```
 
-### 3.5 ToolNode
+### 3.5 JsonNode
+
+```json
+{
+  "id": "json",
+  "type": "JsonNode",
+  "config": {
+    "action": "encode",
+    "input_key": "data.obj",
+    "output_key": "data.json_str",
+    "indent": 2,
+    "ensure_ascii": false,
+    "error_on_fail": true
+  }
+}
+```
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `action` | str | "encode" | 操作：encode（编码）或 decode（解码）|
+| `input_key` | str | "data.input" | 输入数据路径 |
+| `output_key` | str | "data.output" | 输出数据路径 |
+| `indent` | int | 2 | 编码缩进（仅 encode 有效）|
+| `ensure_ascii` | bool | false | 是否转义非 ASCII 字符（仅 encode 有效）|
+| `default` | any | null | 解码失败时的默认值 |
+| `error_on_fail` | bool | true | 失败时是否抛出错误 |
+
+**编码示例：**
+```json
+{"action": "encode", "input_key": "data.obj", "output_key": "data.json"}
+```
+
+**解码示例：**
+```json
+{"action": "decode", "input_key": "data.json", "output_key": "data.obj"}
+```
+
+### 3.6 ToolNode
 
 ```json
 {

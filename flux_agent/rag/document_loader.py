@@ -9,7 +9,6 @@ import logging
 import os
 
 from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 logger = logging.getLogger(__name__)
 
@@ -214,6 +213,14 @@ class DocumentLoader:
         if not documents:
             return []
 
+        try:
+            from langchain_text_splitters import RecursiveCharacterTextSplitter
+        except ImportError:
+            raise ImportError(
+                "RAG 功能需要安装 langchain-text-splitters，"
+                "请运行: pip install 'flux-agent[rag]'"
+            )
+
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=self.chunk_size,
             chunk_overlap=self.chunk_overlap,
@@ -245,6 +252,14 @@ class DocumentLoader:
         """
         if not texts:
             return []
+
+        try:
+            from langchain_text_splitters import RecursiveCharacterTextSplitter
+        except ImportError:
+            raise ImportError(
+                "RAG 功能需要安装 langchain-text-splitters，"
+                "请运行: pip install 'flux-agent[rag]'"
+            )
 
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=self.chunk_size,

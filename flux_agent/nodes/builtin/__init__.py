@@ -7,7 +7,7 @@
 
 from .control import ConditionNode, ConditionNodeConfig, LoopNode, LoopNodeConfig
 from .llm import LLMNode, LLMNodeConfig
-from .transform import TransformNode, TransformNodeConfig
+from .transform import TransformNode, TransformNodeConfig, JsonNode, JsonNodeConfig
 from .io import (
     HTTPRequestNode,
     HTTPRequestNodeConfig,
@@ -36,6 +36,8 @@ BUILTIN_NODES = {
     # 数据处理
     "transform": TransformNode,
     "TransformNode": TransformNode,
+    "json": JsonNode,
+    "JsonNode": JsonNode,
     # IO
     "http_request": HTTPRequestNode,
     "HTTPRequestNode": HTTPRequestNode,
@@ -65,6 +67,8 @@ __all__ = [
     # 数据处理
     "TransformNode",
     "TransformNodeConfig",
+    "JsonNode",
+    "JsonNodeConfig",
     # IO
     "HTTPRequestNode",
     "HTTPRequestNodeConfig",

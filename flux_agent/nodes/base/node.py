@@ -170,9 +170,7 @@ class BaseNode(ABC):
                 return False
         return True
 
-    def __call__(
-        self, state: Dict[str, Any]
-    ) -> Union[Dict[str, Any], Any]:
+    def __call__(self, state: Dict[str, Any]) -> Union[Dict[str, Any], Any]:
         """使节点可作为函数调用"""
         node_id = getattr(self, "_node_id", self.node_type)
         start_time = time.time()
@@ -362,6 +360,33 @@ class BaseNode(ABC):
     # 变量插值
     # ============================================================
 
+    def _try_get_raw_value(self, template: str, state: Dict) -> Any:
+        """
+        尝试获取变量的原始值（不转字符串）
+
+        对于纯变量引用 ${data.xxx}，如果值是 list/dict，直接返回原值
+
+        Args:
+            template: 模板字符串
+            state: 工作流状态
+
+        Returns:
+            如果是纯变量引用且值是 list/dict，返回原值；否则返回 None
+        """
+        if not isinstance(template, str):
+            return None
+        if not template.startswith("${") or not template.endswith("}"):
+            return None
+        if " " in template:
+            return None
+
+        var_path = template[2:-1]
+        raw_value = self._get_nested(state, var_path)
+
+        if isinstance(raw_value, (list, dict)):
+            return raw_value
+        return None
+
     def _interpolate(self, template: str, state: Dict) -> str:
         """
         变量插值
@@ -423,7 +448,11 @@ class BaseNode(ABC):
         result = {}
         for key, value in template.items():
             if isinstance(value, str):
-                result[key] = self._interpolate(value, state)
+                raw = self._try_get_raw_value(value, state)
+                if raw is not None:
+                    result[key] = raw
+                else:
+                    result[key] = self._interpolate(value, state)
             elif isinstance(value, dict):
                 result[key] = self._interpolate_dict(value, state)
             elif isinstance(value, list):
@@ -437,6 +466,9 @@ class BaseNode(ABC):
     def _interpolate_value(self, value: Any, state: Dict) -> Any:
         """插值任意值"""
         if isinstance(value, str):
+            raw = self._try_get_raw_value(value, state)
+            if raw is not None:
+                return raw
             return self._interpolate(value, state)
         elif isinstance(value, dict):
             return self._interpolate_dict(value, state)
