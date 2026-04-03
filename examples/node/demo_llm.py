@@ -24,6 +24,10 @@ def get_weather(city: str) -> str:
     """获取城市天气（模拟）"""
     return f"{city}今天天气晴朗，温度25℃"
 
+DEFAULT_BASE_URL = ""
+DEFAULT_API_KEY = ""
+
+
 def main():
     # if not os.environ.get("OPENAI_API_KEY"):
     #     print("请设置环境变量 OPENAI_API_KEY")
@@ -42,8 +46,8 @@ def main():
                     "user_prompt": "${data.question}",
                     "output_key": "data.response.text",
                     "temperature": 0.7,
-                    "base_url": "",
-                    "api_key": "",
+                    "base_url": DEFAULT_BASE_URL,
+                    "api_key": DEFAULT_API_KEY,
                     "save_to_messages":True
                 },
             },
@@ -54,13 +58,16 @@ def main():
                     "model": "openai",
                     "model_name": "gpt-4o",
                     "system_prompt": "你是一个视觉大师",
-                    "user_prompt": "这个图片中有什么",
+                    "user_prompt": "这个图片中有什么, 请返回json 数据 {\"desc\":\"图片描述\"}",
                     "output_key": "data.response.image",
                     "image_list":["${data.image_path}"],
                     "temperature": 0.7,
-                    "base_url": "",
-                    "api_key": "",
-                    "save_to_messages":False
+                          "base_url": DEFAULT_BASE_URL,
+                    "api_key": DEFAULT_API_KEY,
+                    "save_to_messages":False,
+                    "response_format": {
+                        "type": "json_object"
+                    },
                 },
             },  
             {
@@ -72,9 +79,19 @@ def main():
                     "user_prompt": "请帮我问候王五，然后查看下当前城市是哪里，然后告诉我这个城市今天的天气",
                     "tools": ["greet", "get_city", "get_weather"],  # LLM 可用的工具列表
                     "output_key": "data.response.tool",
-                    "base_url": "",
-                    "api_key": "",
-                    "save_to_messages":True
+                    "base_url": DEFAULT_BASE_URL,
+                    "api_key": DEFAULT_API_KEY,
+                    "save_to_messages":True,
+                    "json_schema": {
+                        "required": ["contacts"],
+                        "type": "object",
+                        "properties": {
+                            "greet": {"type": "string", "description": "问候内容"},
+                            "city": {"type": "string", "description": "当前城市"},
+                            "weather": {"type": "string", "description": "城市天气"},
+                        },
+                        "required": ["greet", "city", "weather"],
+                    },
                 },
             }
         ],
@@ -86,7 +103,7 @@ def main():
     print("=" * 50)
 
     runner = WorkflowRunner(config_dict=config, tools={"greet":greet, "get_city":get_city, "get_weather":get_weather})
-    result = runner.invoke({"data": {"question": " 你是什么模型", "image_path": "https://img.com/f8b863843d0af65ee5d72f7d70bb86b8.jpg"}})
+    result = runner.invoke({"data": {"question": " 你是什么模型", "image_path": "https://img.x.cc/cff03c74a7cf7262cbd99fe16f932772.jpg"}})
 
     print(f"回答: {result.get('data', {}).get('response', {})}")
     print("=" * 50)

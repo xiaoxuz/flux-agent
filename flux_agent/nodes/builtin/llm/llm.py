@@ -45,6 +45,18 @@ class LLMNodeConfig(NodeConfig):
     rag_context_key: str = "rag_context"
     rag_mode: str = "append"
 
+    # ===== Structured Output 支持 =====
+    # JSON Schema 字典（直接使用）
+    json_schema: Optional[Dict] = None
+    # Pydantic 模型类路径，格式："module_path:ClassName"
+    json_schema_pydantic: Optional[str] = None
+    # TypedDict 类路径
+    json_schema_typed_dict: Optional[str] = None
+    # strict 模式（部分 provider 支持）
+    json_schema_strict: bool = True
+    # 是否包含原始响应
+    include_raw: bool = False
+
 
 class LLMNode(BaseNode):
     """
@@ -70,37 +82,99 @@ class LLMNode(BaseNode):
         self._tools_by_name = {}
 
     def _get_llm(self):
-        """获取 LLM 实例"""
-        if self._llm is None:
-            try:
-                from langchain_openai import ChatOpenAI
-            except ImportError:
-                raise ImportError("请安装 langchain: pip install langchain")
+        """获取原始 LLM 实例 —— 不做 with_structured_output"""
+        if self._llm is not None:
+            return self._llm
 
-            model_kwargs = {}
-            if self.config.response_format:
-                rf_type = self.config.response_format.get("type")
-                if rf_type == "json_object":
-                    model_kwargs["response_format"] = {"type": "json_object"}
-                elif rf_type == "json_schema":
-                    model_kwargs["response_format"] = self.config.response_format
+        try:
+            from langchain_openai import ChatOpenAI
+        except ImportError:
+            raise ImportError("请安装 langchain: pip install langchain")
 
-            llm_params = {
-                "model": self.config.model_name,
-                "temperature": self.config.temperature,
-                "max_tokens": self.config.max_tokens,
-            }
+        model_kwargs = {}
 
-            if self.config.api_key:
-                llm_params["api_key"] = self.config.api_key
-            if self.config.base_url:
-                llm_params["base_url"] = self.config.base_url
-            if model_kwargs:
-                llm_params["model_kwargs"] = model_kwargs
+        # response_format 用于旧的 json_object 模式（通过 model_kwargs 设置）
+        # json_schema/json_schema_pydantic 通过 with_structured_output 设置，在 execute 中处理
+        if self.config.response_format and not self._needs_structured_output():
+            rf_type = self.config.response_format.get("type")
+            if rf_type == "json_object":
+                model_kwargs["response_format"] = {"type": "json_object"}
 
-            self._llm = ChatOpenAI(**llm_params)
+        llm_params = {
+            "model": self.config.model_name,
+            "temperature": self.config.temperature,
+            "max_tokens": self.config.max_tokens,
+        }
+
+        if self.config.api_key:
+            llm_params["api_key"] = self.config.api_key
+        if self.config.base_url:
+            llm_params["base_url"] = self.config.base_url
+        if model_kwargs:
+            llm_params["model_kwargs"] = model_kwargs
+
+        self._llm = ChatOpenAI(**llm_params)
+
+        # 不在这里做 with_structured_output，移到 execute 中处理
 
         return self._llm
+
+    def _needs_structured_output(self) -> bool:
+        """检查是否需要配置 structured output"""
+        return (
+            self.config.json_schema is not None
+            or self.config.json_schema_pydantic is not None
+            or self.config.json_schema_typed_dict is not None
+        )
+
+    def _load_schema_from_path(self, path: str) -> Any:
+        """从类路径加载 schema 类"""
+        if ":" not in path:
+            raise ValueError(f"无效的类路径格式: {path}，应为 'module_path:ClassName'")
+
+        module_path, class_name = path.rsplit(":", 1)
+        try:
+            import importlib
+
+            module = importlib.import_module(module_path)
+            schema_class = getattr(module, class_name)
+            return schema_class
+        except (ImportError, AttributeError) as e:
+            raise ImportError(f"无法加载 schema 类 {path}: {e}")
+
+    def _apply_structured_output(self, llm):
+        """在给定的 llm 上应用 structured output，返回新的 runnable（纯函数）"""
+        schema = None
+
+        # 1. Pydantic 模型
+        if self.config.json_schema_pydantic:
+            schema = self._load_schema_from_path(self.config.json_schema_pydantic)
+
+        # 2. TypedDict
+        elif self.config.json_schema_typed_dict:
+            schema = self._load_schema_from_path(self.config.json_schema_typed_dict)
+
+        # 3. JSON Schema 字典
+        elif self.config.json_schema:
+            schema = self._prepare_json_schema(self.config.json_schema)
+
+        if schema is not None:
+            return llm.with_structured_output(schema, include_raw=self.config.include_raw)
+        return llm
+
+    def _prepare_json_schema(self, schema: Dict) -> Dict:
+        """准备 JSON Schema，确保有 title 字段"""
+        if not isinstance(schema, dict):
+            return schema
+
+        # 如果已经有 title，直接返回
+        if "title" in schema:
+            return schema
+
+        # 复制 schema 并添加 title
+        schema = dict(schema)
+        schema["title"] = "Response"
+        return schema
 
     def _wrap_tool(self, func: callable, name: str = None) -> Any:
         """将普通函数包装为 LangChain Tool"""
@@ -174,20 +248,34 @@ class LLMNode(BaseNode):
         """执行 LLM 调用，支持工具自动执行和 RAG"""
         state = self._rag_retrieve(state)
 
+        # 1. 获取原始 LLM
         llm = self._get_llm()
 
-        if self.config.tools and self._bound_tools is None:
+        # 2. 判断是否有 tools
+        has_tools = bool(self.config.tools)
+        needs_schema = self._needs_structured_output()
+
+        # 3. 如果有 tools，先绑定工具
+        if has_tools and self._bound_tools is None:
             llm = self._bind_tools(llm)
+        elif has_tools and self._bound_tools is not None:
+            llm = self._bound_tools
+
+        # 4. 如果没有 tools 但有 json_schema，直接套 structured output
+        if not has_tools and needs_schema:
+            llm = self._apply_structured_output(llm)
 
         messages = self._build_messages(state)
 
+        # 5. Tool 循环
         max_iterations = getattr(self.config, "max_tool_iterations", 10)
         iteration = 0
+        response = None
 
         while iteration < max_iterations:
             response = llm.invoke(messages)
 
-            if not response.tool_calls:
+            if not has_tools or not response.tool_calls:
                 break
 
             iteration += 1
@@ -200,17 +288,14 @@ class LLMNode(BaseNode):
                     ToolMessage(content=str(tool_result), tool_call_id=tool_call.get("id", ""))
                 )
 
-        if hasattr(response, "content"):
-            result = response.content
-        else:
-            result = str(response)
-        
-        if self.config.response_format and self.config.response_format.get("type") == "json_object":
-            if isinstance(result, str):
-                try:
-                    result = json.loads(result)
-                except json.JSONDecodeError:
-                    pass
+        # 6. Tool 循环结束后，如果同时有 tools + json_schema，用 structured output 做最终格式化
+        if has_tools and needs_schema and response is not None:
+            structured_llm = self._apply_structured_output(self._get_llm())
+            messages.append(response)
+            response = structured_llm.invoke(messages)
+
+        # 7. 处理结果
+        result = self._extract_response_result(response)
 
         output = self._set_nested({}, self.config.output_key, result)
 
@@ -224,6 +309,55 @@ class LLMNode(BaseNode):
             output["messages"].append({"role": "assistant", "content": assistant_content})
 
         return output
+
+    def _extract_response_result(self, response: Any) -> Any:
+        """提取响应结果，处理 structured output"""
+        from langchain_core.messages import BaseMessage
+
+        # 1. 如果配置了 include_raw，结果是 dict 包含 raw/parsed/parsing_error
+        if self.config.include_raw and isinstance(response, dict):
+            if "parsed" in response:
+                return response
+
+        # 2. 如果有 parsed 字段（Pydantic 模型或 include_raw=True）
+        if hasattr(response, "parsed") and response.parsed is not None:
+            return response.parsed
+
+        # 3. 普通 AIMessage 响应 —— 必须在 dict/Pydantic 判断之前！
+        #    因为 AIMessage 本身也是 Pydantic 模型，也有 model_dump()
+        if isinstance(response, BaseMessage):
+            result = response.content
+            # 如果需要 JSON 解析
+            needs_json_parse = (
+                self.config.json_schema
+                or self.config.json_schema_pydantic
+                or self.config.json_schema_typed_dict
+                or (
+                    self.config.response_format
+                    and self.config.response_format.get("type") == "json_object"
+                )
+            )
+            if needs_json_parse and isinstance(result, str):
+                try:
+                    result = json.loads(result)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            return result
+
+        # 4. structured output 返回的 dict（with_structured_output 直接返回 dict）
+        if isinstance(response, dict):
+            return response
+
+        # 5. structured output 返回的 list
+        if isinstance(response, list):
+            return response
+
+        # 6. structured output 返回的 Pydantic 模型（非 Message 类型）
+        if hasattr(response, "model_dump"):
+            return response.model_dump()
+
+        # 7. 兜底
+        return str(response)
 
     def _is_base64(self, s: str) -> bool:
         """检查是否是纯 base64 字符串"""

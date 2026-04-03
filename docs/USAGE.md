@@ -190,12 +190,49 @@ mermaid = graph.get_graph(xray=True).draw_mermaid()
 | `max_tokens` | int | 4096 | 最大 token 数 |
 | `base_url` | str | "" | 自定义 API 地址 |
 | `api_key` | str | "" | 自定义 API Key |
-| `response_format` | dict | null | `{"type": "json_object"}` |
+| `response_format` | dict | null | `{"type": "json_object"}`，简单 JSON 输出 |
 | `save_to_messages` | bool | true | 是否保存到 messages |
 | `tools` | list | [] | 工具名称列表 |
 | `max_tool_iterations` | int | 10 | 工具调用最大循环次数 |
+| `json_schema` | dict | null | JSON Schema 约束输出格式 |
+| `json_schema_pydantic` | str | null | Pydantic 模型路径 |
+| `include_raw` | bool | false | 是否包含原始响应 |
 
 **工具调用循环**：配置 `tools` 后，LLMNode 自动执行：LLM 判断 → 执行工具 → 结果返回 LLM → 循环直到完成。
+
+**Structured Output（结构化输出）**：让模型输出符合指定格式（推荐使用 `json_schema` 或 `json_schema_pydantic`，不要和 `response_format` 同时使用）
+
+```json
+{
+  "id": "llm",
+  "type": "LLMNode",
+  "config": {
+    "model_name": "gpt-4o",
+    "user_prompt": "提取用户信息",
+    "json_schema": {
+      "type": "object",
+      "properties": {
+        "name": {"type": "string", "description": "用户名"},
+        "age": {"type": "integer", "description": "年龄"}
+      },
+      "required": ["name"]
+    }
+  }
+}
+```
+
+**Pydantic 模型方式**：
+
+```json
+{
+  "config": {
+    "model_name": "gpt-4o",
+    "json_schema_pydantic": "myapp.models:UserInfo"
+  }
+}
+```
+
+返回结果会自动解析为 Pydantic 对象或字典。
 
 ### 4.2 ConditionNode - 条件分支
 

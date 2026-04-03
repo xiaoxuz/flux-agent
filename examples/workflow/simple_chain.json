@@ -39,7 +39,7 @@
       "id": "get_task_info",
       "type": "HTTPRequestNode",
       "config": {
-        "url": "http://luban-llmproxy-cc.suanshubang.cc/llm-proxy/api/taskinfo",
+        "url": "http://cc/llm-proxy/api/taskinfo",
         "method": "GET",
         "output_key": "data.task_info",
         "params": {

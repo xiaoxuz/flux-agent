@@ -74,10 +74,51 @@
 | `max_tokens` | int | 4096 | 最大 token |
 | `base_url` | str | "" | 自定义 API 地址 |
 | `api_key` | str | "" | 自定义 API Key |
-| `response_format` | dict | null | 响应格式 |
+| `response_format` | dict | null | `{"type": "json_object"}`，仅用于简单 JSON 输出 |
 | `save_to_messages` | bool | true | 保存到 messages |
 | `tools` | list | [] | 工具列表 |
 | `max_tool_iterations` | int | 10 | 工具循环最大次数 |
+| `json_schema` | dict | null | JSON Schema 字典，用于结构化输出 |
+| `json_schema_pydantic` | str | null | Pydantic 模型路径，如 "my_models:UserInfo" |
+| `json_schema_typed_dict` | str | null | TypedDict 类路径 |
+| `json_schema_strict` | bool | true | 是否启用 strict 模式 |
+| `include_raw` | bool | false | 是否包含原始响应（包含 parsed/raw/parsing_error）|
+
+**注意**：`response_format` 和 `json_schema`/`json_schema_pydantic` 不能同时使用。
+- `response_format: {"type": "json_object"}` - 只保证输出是有效 JSON
+- `json_schema` / `json_schema_pydantic` - 强制符合指定 schema（推荐）
+| `include_raw` | bool | false | 是否包含原始响应（包含 parsed/raw/parsing_error）|
+
+**Structured Output 示例：**
+
+```json
+{
+  "id": "llm",
+  "type": "LLMNode",
+  "config": {
+    "model_name": "gpt-4o",
+    "json_schema": {
+      "type": "object",
+      "properties": {
+        "name": {"type": "string"},
+        "age": {"type": "integer"}
+      },
+      "required": ["name"]
+    }
+  }
+}
+```
+
+**Pydantic 模型示例：**
+
+```json
+{
+  "config": {
+    "model_name": "gpt-4o",
+    "json_schema_pydantic": "myapp.schemas:UserInfo"
+  }
+}
+```
 
 ### 3.3 ConditionNode
 

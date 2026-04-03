@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] - 2025-04-03
+
+### Added
+
+- **LLMNode Structured Output 支持**：
+  - `json_schema`: JSON Schema 字典约束输出格式
+  - `json_schema_pydantic`: Pydantic 模型路径
+  - `json_schema_typed_dict`: TypedDict 类路径
+  - `include_raw`: 是否包含原始响应
+  - 自动添加 title 字段支持 OpenAI JSON Schema
+
+- **示例文件**：`examples/node/demo_llm_json_schema.py` - 5 个完整示例
+
+### Fixed
+
+- **变量插值 JSON 解析**：
+  - 修复 `response_format: {type: "json_object"}` 返回字符串未解析的问题
+  - 现在会自动将 JSON 字符串解析为 dict
+
+- **LLMNode tools + json_schema 兼容**：
+  - 修复同时配置 tools 和 json_schema 时 bind_tools 失败的问题
+  - 调整执行顺序：Tool 循环结束后再做 structured output 格式化
+  - `_get_llm()` 移除 with_structured_output，移到 execute 中处理
+  - `_apply_structured_output(llm)` 改为纯函数
+
+### Changed
+
+- **文档更新**：
+  - CONFIG_REFERENCE.md 添加 json_schema 参数说明
+  - USAGE.md 添加 Structured Output 使用示例
+
 ## [0.2.3] - 2025-04-03
 
 ### Added
