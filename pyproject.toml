@@ -1,6 +1,6 @@
 [project]
 name = "flux-agent"
-version = "0.2.4"
+version = "0.2.5"
 description = "基于 LangGraph + LLM 的通用 Agent 编排框架"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -32,7 +32,7 @@ dependencies = [
 [project.optional-dependencies]
 # 完整功能
 all = [
-    "flux-agent[core,openai,anthropic,google,chroma,faiss,dev]",
+    "flux-agent[core,openai,anthropic,google,chroma,faiss,rag,agents,dev]",
 ]
 
 # 各 LLM 提供商（按需选择安装）
@@ -57,6 +57,9 @@ rag = [
     "langchain-text-splitters>=0.3.0",
     "faiss-cpu>=1.7.0",
 ]
+
+# Agent 模式（Deep Agent 支持）
+agents = ["deepagents>=0.1.0"]
 
 # 开发依赖
 dev = [

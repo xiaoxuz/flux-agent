@@ -26,6 +26,7 @@ from .nodes import (
     ParallelNode,
     SubgraphNode,
     HumanInputNode,
+    AgentNode,
 )
 from .utils import evaluate_condition, ExpressionEvaluator
 from .rag import (
@@ -35,9 +36,26 @@ from .rag import (
     list_knowledge_bases,
     clear_knowledge_bases,
 )
+from .agents import (
+    create_agent,
+    list_available_modes,
+    BaseAgent,
+    AgentInput,
+    AgentOutput,
+    AgentStep,
+    AgentConfig,
+    AgentMode,
+    AgentStatus,
+    StepType,
+    AgentRegistry,
+    ReactAgent,
+    DeepAgent,
+    PlanExecuteAgent,
+    ReflexionAgent,
+)
 
 
-__version__ = "0.1.1"
+__version__ = "0.2.5"
 
 __all__ = [
     "__version__",
@@ -59,6 +77,7 @@ __all__ = [
     "ParallelNode",
     "SubgraphNode",
     "HumanInputNode",
+    "AgentNode",
     "evaluate_condition",
     "ExpressionEvaluator",
     "KnowledgeBase",
@@ -66,4 +85,19 @@ __all__ = [
     "get_knowledge_base",
     "list_knowledge_bases",
     "clear_knowledge_bases",
+    "create_agent",
+    "list_available_modes",
+    "BaseAgent",
+    "AgentInput",
+    "AgentOutput",
+    "AgentStep",
+    "AgentConfig",
+    "AgentMode",
+    "AgentStatus",
+    "StepType",
+    "AgentRegistry",
+    "ReactAgent",
+    "DeepAgent",
+    "PlanExecuteAgent",
+    "ReflexionAgent",
 ]

@@ -349,6 +349,138 @@ data.value is null
 }
 ```
 
+### 3.10 AgentNode
+
+在工作流中调用智能 Agent，支持多种 Agent 模式。
+
+```json
+{
+  "id": "agent",
+  "type": "AgentNode",
+  "config": {
+    "mode": "react",
+    "query": "${data.question}",
+    "output_key": "data.answer",
+    "tools": ["search"],
+    "system_prompt": "你是一个助手",
+    "max_steps": 10,
+    "agent_config": {
+      "verbose": true,
+      "temperature": 0.7
+    }
+  }
+}
+```
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `mode` | str | "react" | Agent 模式：react / deep / plan_execute / reflexion |
+| `query` | str | - | Agent 输入的问题/任务，支持变量插值 |
+| `output_key` | str | "data.output" | Agent 输出写入位置 |
+| `tools` | list | [] | 工具名称列表 |
+| `system_prompt` | str | None | 自定义系统提示词 |
+| `max_steps` | int | 10 | 最大执行步数 |
+| `agent_config` | dict | {} | Agent 配置（verbose, temperature 等） |
+| `context` | str | None | 额外上下文信息 |
+| `messages` | list | [] | 对话历史 |
+
+**支持的模式：**
+
+| 模式 | 说明 | 适用场景 |
+|------|------|----------|
+| `react` | ReAct 模式 | 简单问答、工具调用 |
+| `deep` | Deep 模式 | 复杂任务、代码生成 |
+| `plan_execute` | 计划执行模式 | 多步骤任务 |
+| `reflexion` | 反思模式 | 高质量输出 |
+
+**模式特定配置：**
+
+```json
+// Plan-Execute 模式
+{
+  "mode": "plan_execute",
+  "agent_config": {
+    "enable_replan": true
+  }
+}
+
+// Reflexion 模式
+{
+  "mode": "reflexion",
+  "agent_config": {
+    "max_iterations": 3,
+    "quality_threshold": 8.0
+  }
+}
+```
+
+**工具解析：**
+
+AgentNode 会从父上下文（WorkflowRunner 或 SubgraphNode）中解析工具：
+
+```json
+{
+  "tools": [
+    {"name": "search", "implementation": "my_tools:search_func"}
+  ],
+  "nodes": [
+    {
+      "id": "agent",
+      "type": "AgentNode",
+      "config": {
+        "mode": "react",
+        "query": "${data.q}",
+        "tools": ["search"]
+      }
+    }
+  ]
+}
+```
+
+**完整示例：**
+
+```json
+{
+  "workflow": {
+    "name": "research-agent",
+    "version": "1.0.0"
+  },
+  "tools": [
+    {"name": "web_search", "implementation": "tools:web_search"}
+  ],
+  "nodes": [
+    {
+      "id": "research",
+      "type": "AgentNode",
+      "config": {
+        "mode": "plan_execute",
+        "query": "研究 ${data.topic} 并给出分析报告",
+        "output_key": "data.report",
+        "tools": ["web_search"],
+        "system_prompt": "你是一个专业研究员",
+        "agent_config": {
+          "verbose": true,
+          "enable_replan": true
+        }
+      }
+    }
+  ],
+  "edges": [
+    {"from": "START", "to": "research"},
+    {"from": "research", "to": "END"}
+  ]
+}
+```
+
+**与 LLMNode 的区别：**
+
+| 特性 | LLMNode | AgentNode |
+|------|---------|-----------|
+| 执行模式 | 单次调用 | 多步推理 |
+| 工具使用 | 简单工具调用 | 智能决策+工具调用 |
+| 输出保证 | 原始 LLM 输出 | 结构化 AgentOutput |
+| 适用场景 | 简单任务 | 复杂推理任务 |
+
 ---
 
 ## 四、edges 字段

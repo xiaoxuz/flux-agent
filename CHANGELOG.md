@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2025-04-07
+
+### Added
+
+- **智能 Agent 模块（flux_agent.agents）**：
+  - `create_agent()` 统一工厂函数，支持多种 Agent 模式
+  - `ReActAgent`: ReAct 模式，包装 langgraph.prebuilt.create_react_agent
+  - `DeepAgent`: Deep 模式，包装 deepagents（可选依赖，未安装时降级到 ReAct）
+  - `PlanExecuteAgent`: 先规划再执行，适合复杂多步任务
+  - `ReflexionAgent`: 自我反思改进，适合代码生成、写作
+  - 统一的 `AgentInput`/`AgentOutput` 接口，所有模式输出格式一致
+  - `AgentRegistry` 注册中心，支持自定义 Agent 模式扩展
+  - `AgentCallback` 回调系统，支持执行过程监控
+
+- **AgentNode 节点**：
+  - 在工作流中调用智能 Agent 模块
+  - 支持 react/deep/plan_execute/reflexion 四种模式
+  - 可配置 tools、system_prompt 等
+
+- **可选依赖**：
+  - `pip install flux-agent[agents]` 安装 Deep Agent 支持
+
+- **示例文件**：
+  - `examples/agents/demo_agents.py` - 4 种模式演示
+  - `examples/tools.py` - 示例工具函数
+  - `examples/workflow/agent_demo.json` - AgentNode 工作流 JSON 配置
+  - `examples/workflow/run_agent_demo.py` - AgentNode 工作流运行示例
+
+- **文档**：
+  - `docs/AGENTS.md` - 智能 Agent 模块完整文档
+  - `docs/CONFIG_REFERENCE.md` - 添加 AgentNode 配置说明（3.10 节）
+
 ## [0.2.4] - 2025-04-03
 
 ### Added

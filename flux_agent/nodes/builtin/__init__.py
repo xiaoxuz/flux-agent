@@ -6,7 +6,7 @@
 """
 
 from .control import ConditionNode, ConditionNodeConfig, LoopNode, LoopNodeConfig
-from .llm import LLMNode, LLMNodeConfig
+from .llm import LLMNode, LLMNodeConfig, AgentNode, AgentNodeConfig
 from .transform import TransformNode, TransformNodeConfig, JsonNode, JsonNodeConfig
 from .io import (
     HTTPRequestNode,
@@ -33,6 +33,8 @@ BUILTIN_NODES = {
     # LLM
     "llm": LLMNode,
     "LLMNode": LLMNode,
+    "agent": AgentNode,
+    "AgentNode": AgentNode,
     # 数据处理
     "transform": TransformNode,
     "TransformNode": TransformNode,
@@ -64,6 +66,8 @@ __all__ = [
     # LLM
     "LLMNode",
     "LLMNodeConfig",
+    "AgentNode",
+    "AgentNodeConfig",
     # 数据处理
     "TransformNode",
     "TransformNodeConfig",

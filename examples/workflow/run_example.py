@@ -9,7 +9,6 @@
 import sys
 from pathlib import Path
 
-
 from flux_agent import WorkflowRunner
 
 def example_input_hook(node_id, state):

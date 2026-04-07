@@ -35,6 +35,8 @@ from .builtin import (
     ConditionNodeConfig,
     LoopNode,
     LoopNodeConfig,
+    AgentNode,
+    AgentNodeConfig,
     # LLM
     LLMNode,
     LLMNodeConfig,
@@ -75,6 +77,8 @@ __all__ = [
     "ConditionNodeConfig",
     "LoopNode",
     "LoopNodeConfig",
+    "AgentNode",
+    "AgentNodeConfig",
     # LLM 节点
     "LLMNode",
     "LLMNodeConfig",

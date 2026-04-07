@@ -125,10 +125,49 @@ print(result)
 | `SubgraphNode` | 子图嵌套 | 嵌入其他工作流 |
 | `HumanInputNode` | 人工介入 | 暂停等待人工输入 |
 | `RagSearchNode` | RAG 检索 | 知识库向量检索 |
+| `AgentNode` | 智能Agent | 在工作流中调用多模式Agent |
+
+## 智能 Agent 模块
+
+开箱即用的多模式 Agent 能力：
+
+```python
+from langchain_openai import ChatOpenAI
+from flux_agent.agents import create_agent
+
+llm = ChatOpenAI(model="gpt-4o")
+
+# ReAct 模式 - 简单问答
+agent = create_agent("react", llm=llm, tools=[search])
+result = agent.invoke("今天天气怎么样？")
+
+# Plan-Execute 模式 - 复杂任务
+agent = create_agent("plan_execute", llm=llm, enable_replan=True)
+result = agent.invoke("分析市场趋势并给出建议")
+
+# Reflexion 模式 - 自我反思改进
+agent = create_agent("reflexion", llm=llm, max_iterations=3)
+result = agent.invoke("写一个快速排序算法")
+
+# 所有模式输出格式一致
+print(result.answer)    # 最终回答
+print(result.status)    # 执行状态
+print(result.steps)     # 执行过程
+```
+
+| 模式 | 说明 | 适用场景 |
+|------|------|----------|
+| `react` | ReAct 模式 | 简单问答、工具调用 |
+| `deep` | Deep 模式 | 复杂任务、代码生成 |
+| `plan_execute` | 先规划再执行 | 多步骤任务 |
+| `reflexion` | 自我反思改进 | 高质量输出 |
+
+详细文档: [AGENTS.md](docs/AGENTS.md)
 
 ## 文档
 
 - [使用文档](https://github.com/xiaoxuz/flux-agent/blob/main/docs/USAGE.md) - 快速开始、API 参考、完整示例
+- [智能 Agent 模块](https://github.com/xiaoxuz/flux-agent/blob/main/docs/AGENTS.md) - 多模式 Agent 开箱即用
 - [RAG 模块](https://github.com/xiaoxuz/flux-agent/blob/main/docs/RAG.md) - 知识库创建、检索、过滤
 - [配置参考](https://github.com/xiaoxuz/flux-agent/blob/main/docs/CONFIG_REFERENCE.md) - JSON 配置完整说明
 - [节点开发指南](https://github.com/xiaoxuz/flux-agent/blob/main/docs/NODE_DEVELOPMENT.md) - 自定义节点开发规范
@@ -163,6 +202,15 @@ flux-agent/
 │   │   ├── document_loader.py # 文档加载
 │   │   ├── embeddings.py    # Embedding
 │   │   └── vector_store.py  # 向量存储
+│   │
+│   ├── agents/               # 智能 Agent 模块
+│   │   ├── base.py           # 基类、输入输出定义
+│   │   ├── registry.py       # Agent 注册中心
+│   │   ├── factory.py        # create_agent() 工厂
+│   │   ├── react_agent.py    # ReAct 模式
+│   │   ├── deep_agent.py     # Deep 模式
+│   │   ├── plan_execute_agent.py  # Plan-Execute 模式
+│   │   └── reflexion_agent.py     # Reflexion 模式
 │   │
 │   ├── utils/                # 工具函数
 │   │   └── expression.py     # 表达式解析
