@@ -21,6 +21,10 @@ from flux_agent.agents import (
 from dotenv import load_dotenv
 load_dotenv()
 import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from examples.tools import mock_search
+
 
 def demo_available_modes():
     """演示查看所有可用模式"""
@@ -37,16 +41,14 @@ def demo_react_agent():
     print("=" * 60)
     print("示例1: ReAct 模式 - 简单问答")
     print("=" * 60)
-    
-  
-    
     agent = create_agent(
         "react",
         llm=llm,
         config=AgentConfig(verbose=True),
+        tools=[mock_search]
     )
     
-    result = agent.invoke("什么是量子计算？用简单的语言解释")
+    result = agent.invoke("什么是量子计算？用简单的语言解释，然后再看下北京天气")
     
     print(f"\n回答: {result.answer[:200]}...")
     print(f"状态: {result.status.value}")
