@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] - 2026-04-10
+
+### Fixed
+
+- **TransformNode `_token_usage` 重复累积**：
+  - 修复 `execute()` 返回 `state.copy()` 时携带历史 `_token_usage` 导致 reducer 重复合并的问题
+  - `TransformNode` 的 `execute()` 不应返回 `_token_usage` 字段，避免污染全局 state
+
 ## [0.2.6] - 2025-04-08
 
 ### Added

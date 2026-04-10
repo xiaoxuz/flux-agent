@@ -58,6 +58,7 @@ class TransformNode(BaseNode):
         """执行转换操作"""
         result = state.copy() if state else {}
 
+        result["_token_usage"] = {}
 
         for transform in self.config.transforms:
             action = transform.get("action")
