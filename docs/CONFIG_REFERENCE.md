@@ -59,7 +59,9 @@
     "response_format": {"type": "json_object"},
     "save_to_messages": true,
     "tools": ["search"],
-    "max_tool_iterations": 10
+    "max_tool_iterations": 10,
+    "timeout": 300.0,
+    "max_retries": 1
   }
 }
 ```
@@ -78,16 +80,19 @@
 | `save_to_messages` | bool | true | 保存到 messages |
 | `tools` | list | [] | 工具列表 |
 | `max_tool_iterations` | int | 10 | 工具循环最大次数 |
+| `timeout` | float | 300.0 | 请求超时时间（秒），默认 5 分钟 |
+| `max_retries` | int | 1 | 请求失败最大重试次数 |
 | `json_schema` | dict | null | JSON Schema 字典，用于结构化输出 |
 | `json_schema_pydantic` | str | null | Pydantic 模型路径，如 "my_models:UserInfo" |
 | `json_schema_typed_dict` | str | null | TypedDict 类路径 |
 | `json_schema_strict` | bool | true | 是否启用 strict 模式 |
 | `include_raw` | bool | false | 是否包含原始响应（包含 parsed/raw/parsing_error）|
 
+**Token Usage 自动追踪**：LLMNode 会自动将 token 用量写入 state 顶层 `_token_usage` 字段（通过 `merge_token_usage` reducer 自动汇总累加 + 明细追加），无需手动配置。
+
 **注意**：`response_format` 和 `json_schema`/`json_schema_pydantic` 不能同时使用。
 - `response_format: {"type": "json_object"}` - 只保证输出是有效 JSON
 - `json_schema` / `json_schema_pydantic` - 强制符合指定 schema（推荐）
-| `include_raw` | bool | false | 是否包含原始响应（包含 parsed/raw/parsing_error）|
 
 **Structured Output 示例：**
 

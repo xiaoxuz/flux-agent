@@ -3,6 +3,8 @@ flux_agent/agents/deep_agent.py
 Deep 模式 Agent - 包装 deepagents.create_deep_agent
 """
 
+from typing import List
+
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langchain_core.messages import AIMessage
@@ -11,35 +13,45 @@ from .base import (
     BaseAgent, AgentMode, AgentInput, AgentOutput,
     AgentStep, AgentConfig, AgentStatus, StepType,
 )
+from .skill import Skill
 
 
 class DeepAgent(BaseAgent):
     """
     Deep 模式 Agent
-    
+
     包装 deepagents.create_deep_agent，提供统一的输入输出接口
     如果 deepagents 未安装，降级到 ReactAgent
-    
+
     Usage:
         from langchain_openai import ChatOpenAI
-        
+
         llm = ChatOpenAI(model="gpt-4o")
-        
+
         agent = DeepAgent(llm=llm, tools=[search])
         result = agent.invoke("分析2024年AI领域的重要突破")
-        
+
         print(result.answer)
     """
-    
+
     def __init__(
         self,
         llm: BaseChatModel,
         tools: list[BaseTool] | None = None,
         system_prompt: str | None = None,
         config: AgentConfig | None = None,
+        skills: List[Skill] | None = None,
+        skills_dir: str = "skills",
     ):
         self._fallback_agent = None
-        super().__init__(llm=llm, tools=tools, system_prompt=system_prompt, config=config)
+        super().__init__(
+            llm=llm,
+            tools=tools,
+            system_prompt=system_prompt,
+            config=config,
+            skills=skills,
+            skills_dir=skills_dir,
+        )
     
     @property
     def mode(self) -> AgentMode:
@@ -47,14 +59,23 @@ class DeepAgent(BaseAgent):
     
     def _build(self) -> None:
         """构建 Deep agent"""
+        all_tools = self._get_all_tools()
+        prompt = self.system_prompt or "You are a helpful assistant."
+
+        # 注入 skill catalog
+        if self._skill_registry.invocable_skills:
+            prompt = self._build_system_prompt_with_skills(
+                active_skills=[], base_prompt=prompt, include_catalog=True,
+            )
+
         try:
             from deepagents import create_deep_agent
             self._agent = create_deep_agent(
-                tools=self.tools,
-                system_prompt=self.system_prompt or "You are a helpful assistant.",
+                tools=all_tools,
+                system_prompt=prompt,
             )
             self._use_fallback = False
-        except ImportError as e:
+        except ImportError:
             # 降级到 ReactAgent
             self._use_fallback = True
             from .react_agent import ReactAgent
@@ -63,8 +84,10 @@ class DeepAgent(BaseAgent):
                 tools=self.tools,
                 system_prompt=self.system_prompt,
                 config=self.config,
+                skills=self._skill_registry.all_skills or None,
+                skills_dir=str(self._skill_loader.skills_dir) if self._skill_loader else "skills",
             )
-    
+
     def _run(self, agent_input: AgentInput) -> AgentOutput:
         """执行 Deep 流程"""
         if self._use_fallback and self._fallback_agent:
@@ -72,11 +95,23 @@ class DeepAgent(BaseAgent):
             result.agent_mode = self.mode
             result.metadata["fallback"] = True
             return result
-        
+
         messages = agent_input.to_messages()
-        
+
+        # 强制激活的 skills 直接注入 context
+        forced_skills = self._resolve_active_skills(agent_input)
+        if forced_skills:
+            self._logger.info(f"强制激活 Skills: {[s.name for s in forced_skills]}")
+            skill_context = "\n\n".join(
+                f"[Skill: {s.name}]\n{s.content}" for s in forced_skills
+            )
+            from langchain_core.messages import SystemMessage
+            messages = [SystemMessage(content=f"# Active Skills\n{skill_context}")] + messages
+
+        agent = self._agent
+
         try:
-            result = self._agent.invoke({"messages": messages})
+            result = agent.invoke({"messages": messages})
         except Exception as e:
             return AgentOutput(
                 answer=f"Deep Agent 执行失败: {str(e)}",

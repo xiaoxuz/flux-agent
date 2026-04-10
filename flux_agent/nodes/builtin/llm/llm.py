@@ -44,7 +44,8 @@ class LLMNodeConfig(NodeConfig):
     rag_score_threshold: float = 0.0
     rag_context_key: str = "rag_context"
     rag_mode: str = "append"
-
+    timeout: float = 300.0
+    max_retries: int = 1
     # ===== Structured Output 支持 =====
     # JSON Schema 字典（直接使用）
     json_schema: Optional[Dict] = None
@@ -104,6 +105,8 @@ class LLMNode(BaseNode):
             "model": self.config.model_name,
             "temperature": self.config.temperature,
             "max_tokens": self.config.max_tokens,
+            "timeout": self.config.timeout,
+            "max_retries": self.config.max_retries,
         }
 
         if self.config.api_key:
@@ -272,8 +275,17 @@ class LLMNode(BaseNode):
         iteration = 0
         response = None
 
+        total_input_tokens = 0
+        total_output_tokens = 0
+        total_tokens = 0
+
         while iteration < max_iterations:
             response = llm.invoke(messages)
+
+            if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                total_input_tokens += response.usage_metadata.get("input_tokens", 0)
+                total_output_tokens += response.usage_metadata.get("output_tokens", 0)
+                total_tokens += response.usage_metadata.get("total_tokens", 0)
 
             if not has_tools or not response.tool_calls:
                 break
@@ -294,10 +306,34 @@ class LLMNode(BaseNode):
             messages.append(response)
             response = structured_llm.invoke(messages)
 
+            if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                total_input_tokens += response.usage_metadata.get("input_tokens", 0)
+                total_output_tokens += response.usage_metadata.get("output_tokens", 0)
+                total_tokens += response.usage_metadata.get("total_tokens", 0)
+
         # 7. 处理结果
         result = self._extract_response_result(response)
 
         output = self._set_nested({}, self.config.output_key, result)
+
+        node_id = getattr(self, "_node_id", self.node_type)
+        output["_token_usage"] = {
+            "input_tokens": total_input_tokens,
+            "output_tokens": total_output_tokens,
+            "total_tokens": total_tokens,
+            "details": [{
+                "node_id": node_id,
+                "input_tokens": total_input_tokens,
+                "output_tokens": total_output_tokens,
+                "total_tokens": total_tokens,
+            }],
+        }
+        output["data"]["_curr_token_usage"] = {
+            "node_id": node_id,
+            "input_tokens": total_input_tokens,
+            "output_tokens": total_output_tokens,
+            "total_tokens": total_tokens,
+        }
 
         if getattr(self.config, "save_to_messages", True):
             assistant_content = (

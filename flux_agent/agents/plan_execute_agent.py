@@ -4,6 +4,8 @@ Plan-and-Execute 模式：先规划完整计划，再逐步执行
 """
 import re
 
+from typing import List
+
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -12,18 +14,19 @@ from .base import (
     BaseAgent, AgentMode, AgentInput, AgentOutput,
     AgentStep, AgentConfig, AgentStatus, StepType,
 )
+from .skill import Skill
 from .utils.prompts import PromptLibrary
 
 
 class PlanExecuteAgent(BaseAgent):
     """
     Plan-and-Execute 模式 Agent
-    
+
     工作流程：
     1. Planner: LLM 分析任务，生成完整的分步计划
     2. Executor: 逐步执行计划（每步可调用工具）
     3. Replanner(可选): 根据执行结果动态调整后续计划
-    
+
     Usage:
         agent = PlanExecuteAgent(
             llm=llm,
@@ -32,7 +35,7 @@ class PlanExecuteAgent(BaseAgent):
         )
         result = agent.invoke("分析2024年中国新能源汽车市场趋势并给出投资建议")
     """
-    
+
     def __init__(
         self,
         llm: BaseChatModel,
@@ -40,9 +43,18 @@ class PlanExecuteAgent(BaseAgent):
         system_prompt: str | None = None,
         config: AgentConfig | None = None,
         enable_replan: bool = True,
+        skills: List[Skill] | None = None,
+        skills_dir: str = "skills",
     ):
         self.enable_replan = enable_replan
-        super().__init__(llm=llm, tools=tools, system_prompt=system_prompt, config=config)
+        super().__init__(
+            llm=llm,
+            tools=tools,
+            system_prompt=system_prompt,
+            config=config,
+            skills=skills,
+            skills_dir=skills_dir,
+        )
     
     @property
     def mode(self) -> AgentMode:
@@ -50,22 +62,28 @@ class PlanExecuteAgent(BaseAgent):
     
     def _build(self) -> None:
         """构建执行器"""
-        if self.tools:
+        all_tools = self._get_all_tools()
+        if all_tools:
             from langgraph.prebuilt import create_react_agent
             self._executor = create_react_agent(
                 model=self.llm,
-                tools=self.tools,
+                tools=all_tools,
             )
         else:
             self._executor = None
-    
+
     def _run(self, agent_input: AgentInput) -> AgentOutput:
         """执行 Plan-and-Execute 流程"""
         task = agent_input.query
-        
+
+        # Skill 选择逻辑
+        self._selected_skills = self._resolve_active_skills(agent_input)
+        if self._selected_skills:
+            self._logger.info(f"使用 Skills: {[s.name for s in self._selected_skills]}")
+
         steps = []
         step_index = 0
-        
+
         # 1. 生成计划
         plan = self._generate_plan(task)
         
@@ -148,12 +166,20 @@ class PlanExecuteAgent(BaseAgent):
         """生成执行计划"""
         prompt_template = PromptLibrary.get("plan_execute.planner")
         prompt = prompt_template.format(task=task)
-        
+
+        # 构建 system prompt — 包含 skill catalog + 已强制激活的 skills
+        base_system = "你是一个任务规划专家。"
+        system_content = self._build_system_prompt_with_skills(
+            getattr(self, '_selected_skills', []),
+            base_system,
+            include_catalog=True,
+        )
+
         response = self.llm.invoke([
-            SystemMessage(content="你是一个任务规划专家。"),
+            SystemMessage(content=system_content),
             HumanMessage(content=prompt),
         ])
-        
+
         return self._parse_plan(response.content)
     
     def _execute_step(

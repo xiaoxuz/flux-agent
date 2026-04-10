@@ -220,6 +220,7 @@ class WorkflowRunner:
 
         state = {"data": input_data.get("data", {}), "messages": input_data.get("messages", [])}
         state.update(input_data)
+        state.setdefault("_token_usage", {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "details": []})
 
         try:
             result = graph.invoke(state, config=config)
@@ -241,6 +242,7 @@ class WorkflowRunner:
 
         state = {"data": input_data.get("data", {}), "messages": input_data.get("messages", [])}
         state.update(input_data)
+        state.setdefault("_token_usage", {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "details": []})
 
         for chunk in graph.stream(
             state, config=config, stream_mode=stream_mode or ["updates"], subgraphs=subgraphs
@@ -286,6 +288,7 @@ class WorkflowRunner:
 
         state = {"data": input_data.get("data", {}), "messages": input_data.get("messages", [])}
         state.update(input_data)
+        state.setdefault("_token_usage", {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "details": []})
 
         return await graph.ainvoke(state, config=config)
 
@@ -298,6 +301,7 @@ class WorkflowRunner:
 
         state = {"data": input_data.get("data", {}), "messages": input_data.get("messages", [])}
         state.update(input_data)
+        state.setdefault("_token_usage", {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "details": []})
 
         async for chunk in graph.astream(
             state, config=config, stream_mode=stream_mode or ["updates"]

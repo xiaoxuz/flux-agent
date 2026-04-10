@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] - 2025-04-08
+
+### Added
+
+- **Skill 系统 — Agent 模块化扩展机制**：
+  - `Skill` 数据模型：支持 `scripts/`、`references/`、`assets/` 目录结构
+  - `SkillLoader`：从 `skills/{name}/` 目录加载 Skill，支持 YAML frontmatter 解析（PyYAML + 降级），mtime 缓存失效
+  - `SkillRegistry`：Skill 注册中心，管理全集、生成目录摘要（`build_skill_catalog_prompt()`）
+  - `SkillExecutor`：执行 Skill 关联脚本（`.py`/`.sh`/`.js`），subprocess 隔离，支持超时和环境变量注入
+  - `build_skill_tools()`：生成 3 个 LangChain Tool（`activate_skill`、`run_skill_script`、`load_skill_reference`），实现三层渐进式加载闭环
+  - Frontmatter 扩展字段：`disable-model-invocation`、`user-invocable`、`allowed-tools`、`argument-hint`
+  - 纯代码方式创建 Skill（无需目录，直接传 `Skill(...)` 对象）
+
+- **Agent Skill 集成**：
+  - 所有 4 种 Agent 模式（ReAct/Deep/PlanExecute/Reflexion）均支持 Skill
+  - `BaseAgent` 新增：`_get_skill_tools()`、`_get_all_tools()`、`_resolve_active_skills()`、`_build_system_prompt_with_skills()`
+  - 三种激活方式：强制激活（`active_skills`）、显式引用（query 中提及）、Agent 自主选择（LLM 通过 tool_call）
+  - `AgentInput` 新增字段：`skills`（全集）、`active_skills`（强制激活列表）、`auto_select_skills`
+
+- **Token Usage 全局 + 节点级追踪**：
+  - state 顶层新增 `_token_usage` 字段，自定义 `merge_token_usage` reducer
+  - 全局汇总：自动累加所有 LLMNode 的 `input_tokens`、`output_tokens`、`total_tokens`
+  - 节点明细：`details` 列表记录每个节点每次执行的独立 token 用量
+  - 多个 LLMNode 不再互相覆盖，reducer 自动汇总累加 + 明细追加
+
+- **LLMNode 超时与重试配置**：
+  - `timeout`: 请求超时时间（秒），默认 300.0（5分钟）
+  - `max_retries`: 最大重试次数，默认 1
+  - 参数直接传递给 ChatOpenAI，控制底层 httpx 客户端行为
+
+- **文档**：
+  - `docs/SKILLS.md` — Skill 系统完整文档（目录结构、API、代码级调用链流程图）
+  - `docs/AGENTS.md` — 新增 5 张 Mermaid 架构流程图（统一调用流程、四模式对比、Skill 三层加载、Tool 融合、构建全景）
+  - `examples/agents/demo_skills.py` — Skill 系统演示（加载/注册/脚本执行/引用加载/Agent 集成）
+
+### Changed
+
+- **Skill 选择机制重构**：移除关键词匹配（`SkillSelector.select_relevant_skills`），改为 LLM 驱动的 Tool-based 选择
+- **`SkillSelector`**：标记为 deprecated，仅保留 `parse_skill_reference()` 向后兼容
+- **LLMNode**：移除 `token_usage_key` 配置字段，token 用量改为写入 state 顶层 `_token_usage`
+- **文档更新**：
+  - CONFIG_REFERENCE.md 移除 token_usage_key，说明自动追踪机制
+  - USAGE.md 新增 Token Usage 追踪章节
+  - README.md 更新项目结构、新增 Skill 系统章节
+
+### Fixed
+
+- **`run_skill_script` 参数冲突**：`args` 与 Pydantic v2 保留字冲突，重命名为 `script_args`
+
 ## [0.2.5] - 2025-04-07
 
 ### Added

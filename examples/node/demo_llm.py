@@ -13,6 +13,12 @@ import json
 from flux_agent import WorkflowRunner
 from flux_agent import utils
 
+from dotenv import load_dotenv
+load_dotenv()
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 def greet(name: str) -> str:
     """生成问候语"""
     return f"Hello, {name}!"
@@ -24,9 +30,8 @@ def get_weather(city: str) -> str:
     """获取城市天气（模拟）"""
     return f"{city}今天天气晴朗，温度25℃"
 
-DEFAULT_BASE_URL = ""
-DEFAULT_API_KEY = ""
-
+DEFAULT_BASE_URL = os.getenv("OPENAI_BASE_URL")
+DEFAULT_API_KEY = os.getenv("OPENAI_API_KEY")
 
 def main():
     # if not os.environ.get("OPENAI_API_KEY"):

@@ -4,6 +4,8 @@ Reflexion 模式：执行 → 评估 → 反思 → 改进重试
 """
 import re
 
+from typing import List
+
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -12,20 +14,21 @@ from .base import (
     BaseAgent, AgentMode, AgentInput, AgentOutput,
     AgentStep, AgentConfig, AgentStatus, StepType,
 )
+from .skill import Skill
 from .utils.prompts import PromptLibrary
 
 
 class ReflexionAgent(BaseAgent):
     """
     Reflexion 自我反思模式 Agent
-    
+
     工作流程：
     1. Generator: 生成初始回答
     2. Evaluator: 评估回答质量
     3. Reflector: 反思不足之处
     4. Generator: 基于反思改进回答
     5. 循环直到质量满意或达到最大轮次
-    
+
     Usage:
         agent = ReflexionAgent(
             llm=llm,
@@ -34,7 +37,7 @@ class ReflexionAgent(BaseAgent):
         )
         result = agent.invoke("写一个Python快速排序算法，要求有完整注释和测试")
     """
-    
+
     def __init__(
         self,
         llm: BaseChatModel,
@@ -44,11 +47,20 @@ class ReflexionAgent(BaseAgent):
         max_iterations: int = 3,
         quality_threshold: float = 8.0,
         evaluator_llm: BaseChatModel | None = None,
+        skills: List[Skill] | None = None,
+        skills_dir: str = "skills",
     ):
         self.max_iterations = max_iterations
         self.quality_threshold = quality_threshold
         self.evaluator_llm = evaluator_llm
-        super().__init__(llm=llm, tools=tools, system_prompt=system_prompt, config=config)
+        super().__init__(
+            llm=llm,
+            tools=tools,
+            system_prompt=system_prompt,
+            config=config,
+            skills=skills,
+            skills_dir=skills_dir,
+        )
     
     @property
     def mode(self) -> AgentMode:
@@ -60,26 +72,32 @@ class ReflexionAgent(BaseAgent):
     
     def _build(self) -> None:
         """构建执行器"""
-        if self.tools:
+        all_tools = self._get_all_tools()
+        if all_tools:
             from langgraph.prebuilt import create_react_agent
             self._executor = create_react_agent(
                 model=self.llm,
-                tools=self.tools,
+                tools=all_tools,
             )
         else:
             self._executor = None
-    
+
     def _run(self, agent_input: AgentInput) -> AgentOutput:
         """执行 Reflexion 流程"""
         task = agent_input.query
-        
+
+        # Skill 选择逻辑
+        self._selected_skills = self._resolve_active_skills(agent_input)
+        if self._selected_skills:
+            self._logger.info(f"使用 Skills: {[s.name for s in self._selected_skills]}")
+
         steps = []
         step_index = 0
         attempts = []
         reflections = []
         current_answer = ""
         iteration = 0
-        
+
         # 迭代循环
         while iteration < self.max_iterations:
             # 1. 生成/改进回答
@@ -172,15 +190,21 @@ class ReflexionAgent(BaseAgent):
             ])
         else:
             reflection_context = ""
-        
-        system = self.system_prompt or "你是一个专业的助手，追求高质量输出。"
-        
+
+        # 构建 system prompt — 包含 skill catalog + 已强制激活的 skills
+        base_system = self.system_prompt or "你是一个专业的助手，追求高质量输出。"
+        system = self._build_system_prompt_with_skills(
+            getattr(self, '_selected_skills', []),
+            base_system,
+            include_catalog=True,
+        )
+
         prompt_template = PromptLibrary.get("reflexion.generator")
         prompt = prompt_template.format(
             task=task,
             reflection_context=reflection_context,
         )
-        
+
         response = self.llm.invoke([
             SystemMessage(content=system),
             HumanMessage(content=prompt),

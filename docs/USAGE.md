@@ -175,7 +175,9 @@ mermaid = graph.get_graph(xray=True).draw_mermaid()
     "response_format": {"type": "json_object"},
     "save_to_messages": true,
     "tools": ["search", "calculate"],
-    "max_tool_iterations": 10
+    "max_tool_iterations": 10,
+    "timeout": 300.0,
+    "max_retries": 1
   }
 }
 ```
@@ -194,6 +196,8 @@ mermaid = graph.get_graph(xray=True).draw_mermaid()
 | `save_to_messages` | bool | true | 是否保存到 messages |
 | `tools` | list | [] | 工具名称列表 |
 | `max_tool_iterations` | int | 10 | 工具调用最大循环次数 |
+| `timeout` | float | 300.0 | 请求超时时间（秒），默认 5 分钟 |
+| `max_retries` | int | 1 | 请求失败最大重试次数 |
 | `json_schema` | dict | null | JSON Schema 约束输出格式 |
 | `json_schema_pydantic` | str | null | Pydantic 模型路径 |
 | `include_raw` | bool | false | 是否包含原始响应 |
@@ -528,6 +532,43 @@ LoopNode 用于循环遍历数组，对每个元素执行子图（body_nodes + b
   }
 }
 ```
+
+---
+
+## Token Usage 追踪
+
+工作流自动追踪所有 LLMNode 的 token 用量，结果存储在 state 顶层 `_token_usage` 字段中，包含全局汇总和每个节点的明细。
+
+```python
+result = runner.invoke({"data": {"input": "..."}})
+usage = result["_token_usage"]
+
+# 全局汇总
+print(f"总 token: {usage['total_tokens']}")
+print(f"输入 token: {usage['input_tokens']}")
+print(f"输出 token: {usage['output_tokens']}")
+
+# 每个节点的明细
+for detail in usage["details"]:
+    print(f"  节点 {detail['node_id']}: {detail['total_tokens']} tokens")
+```
+
+输出示例：
+```json
+{
+  "_token_usage": {
+    "input_tokens": 350,
+    "output_tokens": 180,
+    "total_tokens": 530,
+    "details": [
+      {"node_id": "analyze", "input_tokens": 200, "output_tokens": 100, "total_tokens": 300},
+      {"node_id": "summarize", "input_tokens": 150, "output_tokens": 80, "total_tokens": 230}
+    ]
+  }
+}
+```
+
+多个 LLMNode 的 token 用量会通过 `merge_token_usage` reducer 自动汇总累加 + 明细追加，无需手动配置。
 
 ---
 

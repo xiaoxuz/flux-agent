@@ -39,11 +39,23 @@ def sum_values(left: Union[int, float], right: Union[int, float]) -> Union[int, 
     return left + right
 
 
+def merge_token_usage(left: Dict, right: Dict) -> Dict:
+    """Token 用量合并：汇总累加 + 明细追加"""
+    result = {
+        "input_tokens": left.get("input_tokens", 0) + right.get("input_tokens", 0),
+        "output_tokens": left.get("output_tokens", 0) + right.get("output_tokens", 0),
+        "total_tokens": left.get("total_tokens", 0) + right.get("total_tokens", 0),
+        "details": left.get("details", []) + right.get("details", []),
+    }
+    return result
+
+
 REDUCERS: Dict[str, Optional[Callable]] = {
     "append": add,
     "add_messages": add_messages,
     "merge": merge_dicts,
     "sum": sum_values,
+    "merge_token_usage": merge_token_usage,
     "override": None,
 }
 
@@ -56,6 +68,7 @@ class BaseWorkflowState(TypedDict):
     errors: Annotated[List[dict], add]
     metadata: Dict[str, Any]
     context: Annotated[Dict[str, Any], merge_dicts]
+    _token_usage: Annotated[Dict[str, Any], merge_token_usage]
 
 
 def get_nested_value(data: Dict, key: str, default: Any = None) -> Any:

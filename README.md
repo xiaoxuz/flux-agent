@@ -6,6 +6,8 @@
 
 - **JSON 配置驱动** - 无需编写代码，通过 JSON 配置即可定义复杂工作流
 - **内置通用节点** - LLM 调用、条件分支、工具调用、HTTP 请求等开箱即用
+- **多模式 Agent** - ReAct / Deep / Plan-Execute / Reflexion 四种模式，统一接口
+- **Skill 系统** - 模块化扩展：领域指令注入、脚本执行、参考资料按需加载
 - **RAG 能力** - 知识库管理、向量检索、检索增强生成
 - **多模态支持** - 支持图片、视频输入
 - **可插拔扩展** - 用户可按规范开发自定义节点，注册即可使用
@@ -53,30 +55,8 @@ pip install flux-agent[all]
 | `faiss` | FAISS 向量检索 |
 | `rag` | 完整 RAG 支持 (chroma + text-splitters + faiss) |
 | `llms` | 所有 LLM 提供商 |
+| `agents` | Deep Agent 模式 |
 | `all` | 全部功能 |
-
-### RAG 知识库创建
-
-```python
-from flux_agent.rag import (
-    KnowledgeBase,
-    KnowledgeBaseConfig,
-    KnowledgeChunkConfig,
-    KnowledgeEmbeddingConfig,
-)
-
-config = KnowledgeBaseConfig(
-    name="my_docs",
-    persist_directory="./kb_data/my_docs",
-    embedding_config=KnowledgeEmbeddingConfig(
-        model="text-embedding-3-small",
-    )
-)
-
-kb = KnowledgeBase.create(name="my_docs", config=config)
-kb.add_texts(["知识库内容..."])
-kb.generate()
-```
 
 ### 工作流执行
 
@@ -110,6 +90,29 @@ print(result)
 }
 ```
 
+### RAG 知识库创建
+
+```python
+from flux_agent.rag import (
+    KnowledgeBase,
+    KnowledgeBaseConfig,
+    KnowledgeChunkConfig,
+    KnowledgeEmbeddingConfig,
+)
+
+config = KnowledgeBaseConfig(
+    name="my_docs",
+    persist_directory="./kb_data/my_docs",
+    embedding_config=KnowledgeEmbeddingConfig(
+        model="text-embedding-3-small",
+    )
+)
+
+kb = KnowledgeBase.create(name="my_docs", config=config)
+kb.add_texts(["知识库内容..."])
+kb.generate()
+```
+
 ## 内置节点
 
 | 节点类型 | 功能 | 说明 |
@@ -129,7 +132,7 @@ print(result)
 
 ## 智能 Agent 模块
 
-开箱即用的多模式 Agent 能力：
+开箱即用的多模式 Agent 能力，所有模式输出格式一致：
 
 ```python
 from langchain_openai import ChatOpenAI
@@ -149,7 +152,7 @@ result = agent.invoke("分析市场趋势并给出建议")
 agent = create_agent("reflexion", llm=llm, max_iterations=3)
 result = agent.invoke("写一个快速排序算法")
 
-# 所有模式输出格式一致
+# 统一输出
 print(result.answer)    # 最终回答
 print(result.status)    # 执行状态
 print(result.steps)     # 执行过程
@@ -164,15 +167,70 @@ print(result.steps)     # 执行过程
 
 详细文档: [AGENTS.md](docs/AGENTS.md)
 
+## Skill 系统
+
+为 Agent 注入领域知识、执行脚本、引用资料的模块化扩展机制：
+
+```
+skills/
+└── code-review/
+    ├── SKILL.md          # 主指令（注入 system prompt）
+    ├── scripts/          # 可执行脚本（输出作为 observation）
+    │   └── check.py
+    └── references/       # 参考资料（按需加载）
+        └── style-guide.md
+```
+
+### 基本用法
+
+```python
+from flux_agent.agents import create_agent, SkillLoader, AgentInput
+
+# 加载所有 Skill
+loader = SkillLoader("skills")
+agent = create_agent("react", llm=llm, skills=loader.load_all())
+
+# Agent 自主选择 — Skill 目录摘要注入 system prompt，LLM 自行判断
+result = agent.invoke("帮我检查一下代码质量")
+
+# 强制激活指定 Skill
+result = agent.invoke(AgentInput(
+    query="检查这段代码",
+    active_skills=["code-review"],
+))
+```
+
+### 三层渐进式加载
+
+| 层级 | 内容 | 时机 |
+|------|------|------|
+| **目录摘要** | name + description (~100 token/skill) | 始终注入 system prompt |
+| **完整指令** | SKILL.md 正文 | Skill 被激活后注入 |
+| **资源加载** | scripts 执行 / references 读取 | Agent 按需触发 |
+
+### 脚本执行
+
+Skill 脚本输出作为 observation 返回，不消耗 context：
+
+```python
+from flux_agent.agents import SkillExecutor
+
+skill = loader.load("code-review")
+output = SkillExecutor.execute_script(skill, "check.py", args=["main.py"])
+```
+
+详细文档: [SKILLS.md](docs/SKILLS.md)
+
 ## 文档
 
-- [使用文档](https://github.com/xiaoxuz/flux-agent/blob/main/docs/USAGE.md) - 快速开始、API 参考、完整示例
-- [智能 Agent 模块](https://github.com/xiaoxuz/flux-agent/blob/main/docs/AGENTS.md) - 多模式 Agent 开箱即用
-- [RAG 模块](https://github.com/xiaoxuz/flux-agent/blob/main/docs/RAG.md) - 知识库创建、检索、过滤
-- [配置参考](https://github.com/xiaoxuz/flux-agent/blob/main/docs/CONFIG_REFERENCE.md) - JSON 配置完整说明
-- [节点开发指南](https://github.com/xiaoxuz/flux-agent/blob/main/docs/NODE_DEVELOPMENT.md) - 自定义节点开发规范
-- [开发指南](https://github.com/xiaoxuz/flux-agent/blob/main/docs/DEVELOPMENT.md) - 开发、测试、发布流程
-- [技术架构](https://github.com/xiaoxuz/flux-agent/blob/main/docs/TECHNICAL.md) - 架构设计、核心概念
+- [使用文档](docs/USAGE.md) - 快速开始、API 参考、完整示例
+- [智能 Agent 模块](docs/AGENTS.md) - 多模式 Agent 开箱即用
+- [Skill 系统](docs/SKILLS.md) - Skill 扩展机制完整指南
+- [RAG 模块](docs/RAG.md) - 知识库创建、检索、过滤
+- [配置参考](docs/CONFIG_REFERENCE.md) - JSON 配置完整说明
+- [节点开发指南](docs/NODE_DEVELOPMENT.md) - 自定义节点开发规范
+- [开发指南](docs/DEVELOPMENT.md) - 开发、测试、发布流程
+- [技术架构](docs/TECHNICAL.md) - 架构设计、核心概念
 
 ## 项目结构
 
@@ -205,6 +263,7 @@ flux-agent/
 │   │
 │   ├── agents/               # 智能 Agent 模块
 │   │   ├── base.py           # 基类、输入输出定义
+│   │   ├── skill.py          # Skill 模型、加载器、注册中心、执行器
 │   │   ├── registry.py       # Agent 注册中心
 │   │   ├── factory.py        # create_agent() 工厂
 │   │   ├── react_agent.py    # ReAct 模式
@@ -218,10 +277,15 @@ flux-agent/
 │   └── tools/                # 工具模块
 │
 ├── examples/                 # 示例脚本
+│   ├── agents/              # Agent 示例
+│   │   ├── demo_agents.py   # 4 种 Agent 模式演示
+│   │   └── demo_skills.py   # Skill 系统演示
 │   ├── rag/                 # RAG 示例
-│   └── demo_*.py
+│   └── node/                # 节点示例
 │
 ├── docs/                     # 文档
+│   ├── AGENTS.md            # Agent 模块指南
+│   ├── SKILLS.md            # Skill 系统指南
 │   ├── RAG.md               # RAG 模块指南
 │   ├── USAGE.md             # 使用指南
 │   ├── TECHNICAL.md         # 技术架构
@@ -237,10 +301,13 @@ flux-agent/
 - Python >= 3.10
 - langgraph >= 0.3
 - langchain-core >= 0.3
-- langchain-chroma >= 0.1
 - pydantic >= 2.0
 
 可选依赖：
+- `langchain-openai` - OpenAI 模型
+- `langchain-anthropic` - Anthropic 模型
+- `langchain-google-genai` - Google 模型
+- `langchain-chroma` - Chroma 向量存储
 - `faiss-cpu` - FAISS 向量存储
 
 ## License
