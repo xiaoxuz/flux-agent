@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Union
 from dataclasses import dataclass, field
 import json
+import asyncio
 import logging
 from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
 
@@ -245,7 +246,22 @@ class LLMNode(BaseNode):
             result = tool.invoke(tool_args)
             return result
         except Exception as e:
-            return f"Error executing {tool_name}: {str(e)}"
+            err_msg = str(e)
+            # MCP 工具只支持异步调用，尝试用 asyncio 桥接
+            if "does not support sync invocation" in err_msg and hasattr(tool, "ainvoke"):
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        # 已有事件循环，用 ThreadPoolExecutor 桥接
+                        import concurrent.futures
+                        with concurrent.futures.ThreadPoolExecutor() as pool:
+                            future = pool.submit(asyncio.run, tool.ainvoke(tool_args))
+                            return future.result(timeout=600)
+                    else:
+                        return loop.run_until_complete(tool.ainvoke(tool_args))
+                except Exception as async_e:
+                    return f"Error executing {tool_name}: {str(async_e)}"
+            return f"Error executing {tool_name}: {err_msg}"
 
     def execute(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """执行 LLM 调用，支持工具自动执行和 RAG"""

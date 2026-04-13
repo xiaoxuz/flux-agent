@@ -49,6 +49,7 @@ class ReflexionAgent(BaseAgent):
         evaluator_llm: BaseChatModel | None = None,
         skills: List[Skill] | None = None,
         skills_dir: str = "skills",
+        mcp_servers: List[dict] | None = None,
     ):
         self.max_iterations = max_iterations
         self.quality_threshold = quality_threshold
@@ -60,6 +61,7 @@ class ReflexionAgent(BaseAgent):
             config=config,
             skills=skills,
             skills_dir=skills_dir,
+            mcp_servers=mcp_servers,
         )
     
     @property

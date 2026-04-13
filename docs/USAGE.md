@@ -11,6 +11,8 @@ pip install flux-agent
 pip install flux-agent[openai]      # OpenAI 模型
 pip install flux-agent[anthropic]   # Anthropic 模型
 pip install flux-agent[google]      # Google 模型
+pip install flux-agent[mcp]         # MCP 支持
+pip install flux-agent[agents]      # Agent 模式（Deep Agent）
 pip install flux-agent[all]         # 全部
 ```
 

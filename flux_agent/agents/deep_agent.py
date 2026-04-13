@@ -42,6 +42,7 @@ class DeepAgent(BaseAgent):
         config: AgentConfig | None = None,
         skills: List[Skill] | None = None,
         skills_dir: str = "skills",
+        mcp_servers: List[dict] | None = None,
     ):
         self._fallback_agent = None
         super().__init__(
@@ -51,6 +52,7 @@ class DeepAgent(BaseAgent):
             config=config,
             skills=skills,
             skills_dir=skills_dir,
+            mcp_servers=mcp_servers,
         )
     
     @property

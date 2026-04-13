@@ -43,6 +43,7 @@ class ReactAgent(BaseAgent):
         config: AgentConfig | None = None,
         skills: List[Skill] | None = None,
         skills_dir: str = "skills",
+        mcp_servers: List[dict] | None = None,
     ):
         super().__init__(
             llm=llm,
@@ -51,6 +52,7 @@ class ReactAgent(BaseAgent):
             config=config,
             skills=skills,
             skills_dir=skills_dir,
+            mcp_servers=mcp_servers,
         )
     
     @property
@@ -156,12 +158,18 @@ class ReactAgent(BaseAgent):
                     final_answer = msg.content
                     step_index += 1
             elif hasattr(msg, 'name') and hasattr(msg, 'content'):
+                content = msg.content
+                if isinstance(content, list):
+                    # MCP 工具返回格式: [{'type': 'text', 'text': '...'}]
+                    content = " ".join(
+                        item.get("text", "") for item in content if isinstance(item, dict) and item.get("type") == "text"
+                    ) or str(content)
                 step = AgentStep(
                     step_index=step_index,
                     step_type=StepType.OBSERVATION,
-                    content=msg.content[:500] if len(msg.content) > 500 else msg.content,
+                    content=content[:500] if len(content) > 500 else content,
                     tool_name=msg.name if hasattr(msg, 'name') else None,
-                    tool_output=msg.content[:500] if len(msg.content) > 500 else msg.content,
+                    tool_output=content[:500] if len(content) > 500 else content,
                 )
                 steps.append(step)
                 self._logger.step(step)

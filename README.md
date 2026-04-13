@@ -1,6 +1,6 @@
 # Flux-Agent
 
-基于 LangGraph + LLM 的通用 Agent 编排框架。通过 JSON 配置文件即可启动多 Agent Node 工作流，支持复杂的自动化流程编排。
+面向生产环境的 LLM Agent 与 Workflow 编排框架。通过 JSON 配置或纯代码即可构建多 Agent 协作流，内置四种 Agent 模式、Skill 插件系统、MCP 协议接入、RAG 知识库，以及十余种开箱即用的工作流节点。
 
 ## 核心特性
 
@@ -8,6 +8,7 @@
 - **内置通用节点** - LLM 调用、条件分支、工具调用、HTTP 请求等开箱即用
 - **多模式 Agent** - ReAct / Deep / Plan-Execute / Reflexion 四种模式，统一接口
 - **Skill 系统** - 模块化扩展：领域指令注入、脚本执行、参考资料按需加载
+- **MCP 协议接入** - 支持连接外部 MCP Server，自动将 MCP 工具注入 Agent 工具集
 - **RAG 能力** - 知识库管理、向量检索、检索增强生成
 - **多模态支持** - 支持图片、视频输入
 - **可插拔扩展** - 用户可按规范开发自定义节点，注册即可使用
@@ -56,6 +57,7 @@ pip install flux-agent[all]
 | `rag` | 完整 RAG 支持 (chroma + text-splitters + faiss) |
 | `llms` | 所有 LLM 提供商 |
 | `agents` | Deep Agent 模式 |
+| `mcp` | MCP 协议支持 |
 | `all` | 全部功能 |
 
 ### 工作流执行
@@ -221,6 +223,34 @@ output = SkillExecutor.execute_script(skill, "check.py", args=["main.py"])
 
 详细文档: [SKILLS.md](docs/SKILLS.md)
 
+## MCP 协议接入
+
+通过 MCP（Model Context Protocol）连接外部工具服务器，所有 Agent 模式均支持：
+
+```python
+from flux_agent.agents import create_agent
+
+agent = create_agent(
+    "react",
+    llm=llm,
+    mcp_servers=[
+        {
+            "name": "my-mcp-server",
+            "transport": "streamable_http",
+            "url": "http://localhost:8080/mcp",
+            "headers": {"Authorization": "Bearer xxx"},
+            "tool_name_prefix": "srv_",
+        }
+    ],
+)
+```
+
+MCP 工具会自动注册到 Agent 工具集，与其他工具无缝协作。示例：
+- `examples/agents/demo_mcp_agent.py` — Agent + MCP 集成演示
+- `examples/node/demo_mcp.py` — MCP 工作流配置
+
+详细文档: [SKILLS.md](docs/SKILLS.md)
+
 ## 文档
 
 - [使用文档](docs/USAGE.md) - 快速开始、API 参考、完整示例
@@ -309,6 +339,7 @@ flux-agent/
 - `langchain-google-genai` - Google 模型
 - `langchain-chroma` - Chroma 向量存储
 - `faiss-cpu` - FAISS 向量存储
+- `langchain-mcp-adapters` / `mcp` - MCP 协议支持
 
 ## License
 

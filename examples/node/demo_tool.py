@@ -10,7 +10,12 @@ ToolNode 和 LLMNode 工具调用示例
 
 import sys
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
+DEFAULT_BASE_URL = os.getenv("OPENAI_BASE_URL")
+DEFAULT_API_KEY = os.getenv("OPENAI_API_KEY")
 
 from flux_agent import WorkflowRunner
 
@@ -136,8 +141,8 @@ def main():
                     "user_prompt": "请帮我问候王五，然后告诉他北京今天的天气, 然后看一下 http://www.baidu.com 的热搜，和所有 url 链接",
                     "tools": ["greet", "get_weather", "web_fetch"],  # LLM 可用的工具列表
                     "output_key": "data.response",
-                    "base_url": "",
-                    "api_key": "",
+                    "base_url": DEFAULT_BASE_URL,
+                    "api_key": DEFAULT_API_KEY,
                 },
             }
         ],

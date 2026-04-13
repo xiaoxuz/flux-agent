@@ -5,11 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.7] - 2026-04-10
+## [0.2.7] - 2026-04-13
+
+### Added
+
+- **MCP（Model Context Protocol）支持**：
+  - `flux_agent/mcp/` 模块：MCP 客户端管理器，支持连接外部 MCP 服务器
+  - `BaseAgent` 新增 `mcp_servers` 参数：通过配置即可接入 MCP 工具
+  - 支持 `streamable_http` 和 `stdio` 两种传输方式
+  - MCP 工具自动包装为同步/异步双模调用（`_wrap_mcp_tool_for_sync`）
+  - MCP 工具调用日志增强：DEBUG 级别打印输入输出，ERROR 级别打印完整异常堆栈
+  - 示例：`examples/agents/demo_mcp_agent.py`、`examples/node/demo_mcp.py`
+
+- **DeepAgent / PlanExecuteAgent / ReflexionAgent MCP 支持**：
+  - `mcp_servers` 参数透传到所有 Agent 模式
+  - 所有模式均可通过配置接入 MCP 工具
 
 ### Fixed
 
 - **TransformNode `_token_usage` 重复累积**：
+  - 修复 `execute()` 返回 `state.copy()` 时携带历史 `_token_usage` 导致 reducer 重复合并的问题
+  - `TransformNode` 的 `execute()` 不应返回 `_token_usage` 字段，避免污染全局 state
+
+## [0.2.6] - 2025-04-08
   - 修复 `execute()` 返回 `state.copy()` 时携带历史 `_token_usage` 导致 reducer 重复合并的问题
   - `TransformNode` 的 `execute()` 不应返回 `_token_usage` 字段，避免污染全局 state
 

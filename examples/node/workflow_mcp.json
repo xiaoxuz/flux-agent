@@ -1,0 +1,48 @@
+{
+  "workflow": {
+    "name": "mcp-research-agent",
+    "description": "使用 MCP Server 工具的研究助手",
+    "version": "1.0.0"
+  },
+
+  "mcp_servers": [
+    {
+      "name": "filesystem",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp/docs"],
+      "tool_name_prefix": "fs_"
+    }
+  ],
+
+  "nodes": [
+    {
+      "id": "research",
+      "type": "LLMNode",
+      "config": {
+        "model_name": "gpt-4o",
+        "system_prompt": "你是一个研究助手，可以读取文件并分析内容。",
+        "user_prompt": "请读取 /tmp/docs/report.txt 的内容，并给出分析摘要",
+        "tools": ["fs_read_file"],
+        "output_key": "data.analysis",
+        "max_tool_iterations": 10
+      }
+    },
+    {
+      "id": "summarize",
+      "type": "LLMNode",
+      "config": {
+        "model_name": "gpt-4o",
+        "system_prompt": "你是一个总结专家。",
+        "user_prompt": "基于以下分析，给出简短总结：${data.analysis}",
+        "output_key": "data.summary"
+      }
+    }
+  ],
+
+  "edges": [
+    {"from": "START", "to": "research"},
+    {"from": "research", "to": "summarize"},
+    {"from": "summarize", "to": "END"}
+  ]
+}

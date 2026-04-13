@@ -16,6 +16,58 @@ from langchain_core.tools import BaseTool
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 
 from .skill import Skill, SkillLoader, SkillSelector, SkillRegistry, SkillExecutor, build_skill_tools
+from flux_agent.mcp import MCPClientManager
+import logging
+
+def _wrap_mcp_tool_for_sync(tool: BaseTool, logger: logging.Logger) -> BaseTool:
+    """
+    为 MCP 工具包装同步调用支持。
+
+    langchain-mcp-adapters 生成的工具只支持异步 ainvoke，
+    但 create_react_agent 等内部用同步 invoke 调用工具。
+    这里通过替换 invoke 方法，让工具同时支持同步和异步。
+    """
+    original_ainvoke = tool.ainvoke
+
+    def sync_invoke(input, config=None, **kwargs):
+        import asyncio
+   
+        tool_name = getattr(tool, 'name', 'unknown')
+        logger.debug(f"MCP tool '{tool_name}' invoked with input: {input}")
+
+        try:
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                result = asyncio.run(original_ainvoke(input, config=config, **kwargs))
+                logger.debug(f"MCP tool '{tool_name}' returned: {result}")
+                return result
+
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    future = pool.submit(
+                        lambda: asyncio.run(original_ainvoke(input, config=config, **kwargs))
+                    )
+                    result = future.result(timeout=600)
+                    logger.debug(f"MCP tool '{tool_name}' returned: {result}")
+                    return result
+            else:
+                result = loop.run_until_complete(original_ainvoke(input, config=config, **kwargs))
+                logger.debug(f"MCP tool '{tool_name}' returned: {result}")
+                return result
+        except Exception:
+            logger.error(
+                f"MCP tool '{tool_name}' failed with input: {input}",
+                exc_info=True,
+            )
+            raise
+
+    # Pydantic BaseModel 需要用 object.__setattr__ 修改属性
+    object.__setattr__(tool, "invoke", sync_invoke)
+    return tool
 
 
 class AgentMode(str, Enum):
@@ -142,6 +194,7 @@ class BaseAgent(ABC):
         config: AgentConfig | None = None,
         skills: List[Skill] | None = None,
         skills_dir: str = "skills",
+        mcp_servers: List[dict] | None = None,
     ):
         self.llm = llm
         self.tools = tools or []
@@ -156,6 +209,11 @@ class BaseAgent(ABC):
         # 注册传入的 skills
         if skills:
             self._skill_registry.register_all(skills)
+
+        # MCP 相关
+        self._mcp_manager = MCPClientManager(mcp_servers) if mcp_servers else None
+        self._mcp_tools_loaded = False
+        self._cached_mcp_tools: list[BaseTool] = []
 
         self._agent = None
         self._is_built = False
@@ -357,9 +415,40 @@ class BaseAgent(ABC):
             )
         return self._cached_skill_tools
 
+    def _get_mcp_tools(self) -> list[BaseTool]:
+        """获取 MCP 工具（懒加载），并为每个工具添加同步调用支持"""
+        if self._mcp_manager is None:
+            return []
+        if self._mcp_tools_loaded:
+            return self._cached_mcp_tools
+
+        try:
+            import asyncio
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    future = pool.submit(asyncio.run, self._mcp_manager.get_tools())
+                    tools = future.result(timeout=300)
+            else:
+                tools = loop.run_until_complete(self._mcp_manager.get_tools())
+
+            # 为每个 MCP 工具添加同步调用支持
+            self._cached_mcp_tools = [
+                _wrap_mcp_tool_for_sync(t, self._logger) for t in tools
+            ]
+            self._mcp_tools_loaded = True
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"加载 MCP 工具失败: {e}")
+            self._cached_mcp_tools = []
+            self._mcp_tools_loaded = True
+
+        return self._cached_mcp_tools
+
     def _get_all_tools(self) -> list[BaseTool]:
-        """获取用户 tools + skill tools 的合并列表"""
-        return self.tools + self._get_skill_tools()
+        """获取用户 tools + skill tools + MCP tools 的合并列表"""
+        return self.tools + self._get_skill_tools() + self._get_mcp_tools()
     
     def __repr__(self) -> str:
         tool_names = [t.name for t in self.tools] if self.tools else []

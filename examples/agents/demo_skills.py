@@ -13,7 +13,14 @@ Flux-Agent Skill 系统演示
 import os
 import sys
 import tempfile
+import logging
 from pathlib import Path
+
+# 配置 logging，显示 DEBUG 及以上级别
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+)
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -267,6 +274,21 @@ def demo_references(skills_dir: str):
 # 演示 5: Agent + Skill 集成
 # ============================================================
 
+MCP_SERVERS = [
+    {
+        "name": "mcp-gateway",
+        "transport": "streamable_http",
+        "url": "http://mcp-gateway/mcp",
+        "headers": {"Cookie": f"x=x"},
+        "tool_name_prefix": "gw_",
+    },
+]
+
+def get_timestamp() -> int:
+    """获取当前时间戳"""
+    import time
+    return int(time.time())
+
 def demo_agent_with_skills(skills_dir: str):
     print("=" * 60)
     print("演示 5: Agent + Skill[目录] 集成")
@@ -295,25 +317,29 @@ def demo_agent_with_skills(skills_dir: str):
         "react",
         llm=llm,
         skills=all_skills,
+        mcp_servers=MCP_SERVERS,
+        tools=[get_timestamp],
         config=AgentConfig(verbose=True),
     )
 
     print(f"\nAgent 已注册 {len(agent.skill_registry.all_skills)} 个 Skills")
     print(f"可自动触发: {[s.name for s in agent.skill_registry.invocable_skills]}")
 
-    # 方式一: Agent 自主选择（通过 catalog）
-    print("\n--- 方式一: Agent 自主选择 ---")
-    result = agent.invoke("帮我检查一下这段代码: def add(a,b): return a+b")
-    print(f"回答: {result.answer[:200]}...")
+    # # 方式一: Agent 自主选择（通过 catalog）
+    # print("\n--- 方式一: Agent 自主选择 ---")
+    # result = agent.invoke("帮我检查一下这段代码: def add(a,b): return a+b")
+    # print(f"回答: {result.answer[:200]}...")
 
-    # 方式二: 强制激活
-    print("\n--- 方式二: 强制激活 active_skills ---")
-    result = agent.invoke(AgentInput(
-        query="帮我检查一下这段代码: def add(a,b): return a+b",
-        active_skills=["code-review"],
-    ))
-    print(f"回答: {result.answer[:200]}...")
-    print()
+    # # 方式二: 强制激活
+    # print("\n--- 方式二: 强制激活 active_skills ---")
+    # result = agent.invoke(AgentInput(
+    #     query="帮我检查一下这段代码: def add(a,b): return a+b",
+    #     active_skills=["code-review"],
+    # ))
+    # print(f"回答: {result.answer[:200]}...")
+    # print()
+    result = agent.invoke("查看下业务线：tiku 服务单元：gvideo-hub近1小时的错误日志")
+    print(f"回答: {result.answer}...")
 
 
 # ============================================================
@@ -434,15 +460,17 @@ def main():
         # demo_programmatic_skill()
 
         # # Agent 集成 - 目录skill
-        # demo_agent_with_skills(skills_dir)
+        skills_dir = "/Users/xiaoxuz/Documents/code/python/flux-agent/examples/agents/skills"
+        demo_agent_with_skills(skills_dir)
         # Agent 集成 - 代码定义 skill
-        demo_agent_with_dynamic_skills(skills_dir)
+        # demo_agent_with_dynamic_skills(skills_dir)
 
     finally:
         # 清理临时目录
-        import shutil
-        shutil.rmtree(skills_dir, ignore_errors=True)
-        print(f"[清理临时目录] {skills_dir}")
+        # import shutil
+        # shutil.rmtree(skills_dir, ignore_errors=True)
+        # print(f"[清理临时目录] {skills_dir}")
+        pass
 
     print("\n" + "=" * 60)
     print("  演示完成!")

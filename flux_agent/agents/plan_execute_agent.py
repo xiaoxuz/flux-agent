@@ -45,6 +45,7 @@ class PlanExecuteAgent(BaseAgent):
         enable_replan: bool = True,
         skills: List[Skill] | None = None,
         skills_dir: str = "skills",
+        mcp_servers: List[dict] | None = None,
     ):
         self.enable_replan = enable_replan
         super().__init__(
@@ -54,6 +55,7 @@ class PlanExecuteAgent(BaseAgent):
             config=config,
             skills=skills,
             skills_dir=skills_dir,
+            mcp_servers=mcp_servers,
         )
     
     @property

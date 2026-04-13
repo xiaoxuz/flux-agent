@@ -8,6 +8,7 @@
   "nodes": [...],       // 节点列表
   "edges": [...],       // 边列表
   "tools": [...]        // 工具定义（可选）
+  "mcp_servers": [...]  // MCP Server 配置（可选）
 }
 ```
 
@@ -513,7 +514,116 @@ AgentNode 会从父上下文（WorkflowRunner 或 SubgraphNode）中解析工具
 
 ---
 
-## 五、tools 字段
+## 九、mcp_servers 字段
+
+配置外部 MCP（Model Context Protocol）Server，让 LLMNode 和 Agent 可以调用 MCP 工具。
+
+### 9.1 支持的传输方式
+
+| 方式 | 说明 | 适用场景 |
+|------|------|----------|
+| `stdio` | 本地进程通信 | 本地 CLI 工具、脚本 |
+| `http` | Server-Sent Events | 远程 HTTP 服务 |
+| `streamable_http` | 无状态 HTTP | MCP 协议推荐的远程连接方式 |
+
+### 9.2 字段说明
+
+```json
+{
+  "mcp_servers": [
+    {
+      "name": "filesystem",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp/allowed-dir"],
+      "env": {"NODE_ENV": "production"},
+      "tool_name_prefix": "fs_"
+    },
+    {
+      "name": "web-search",
+      "transport": "streamable_http",
+      "url": "https://mcp-gateway.example.com/mcp",
+      "headers": {"Authorization": "Bearer sk-xxx"},
+      "tool_name_prefix": true
+    }
+  ]
+}
+```
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `name` | str | 自动生成 | Server 名称，用于标识和日志 |
+| `transport` | str | "stdio" | 传输方式：stdio / http / streamable_http |
+| `command` | str | "python" | stdio 模式的启动命令 |
+| `args` | list | [] | stdio 模式的命令行参数 |
+| `env` | dict | {} | stdio 模式的环境变量 |
+| `url` | str | "" | http/streamable_http 模式的 URL |
+| `headers` | dict | {} | http/streamable_http 模式的请求头 |
+| `tool_name_prefix` | bool\|str | false | 是否添加工具名前缀。`true` 使用 server name 作为前缀 |
+
+### 9.3 完整工作流示例
+
+```json
+{
+  "workflow": {"name": "mcp-demo"},
+  "mcp_servers": [
+    {
+      "name": "filesystem",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp/docs"],
+      "tool_name_prefix": true
+    }
+  ],
+  "tools": [
+    {"name": "web_search", "implementation": "my_tools:search"}
+  ],
+  "nodes": [
+    {
+      "id": "answer",
+      "type": "LLMNode",
+      "config": {
+        "model_name": "gpt-4o",
+        "system_prompt": "你是一个助手，可以读取文件并搜索网络",
+        "user_prompt": "读取 /tmp/docs/readme.md 的内容，并搜索关于 ${data.topic} 的信息",
+        "tools": ["web_search", "fs_read_file"],
+        "output_key": "data.answer"
+      }
+    }
+  ],
+  "edges": [
+    {"from": "START", "to": "answer"},
+    {"from": "answer", "to": "END"}
+  ]
+}
+```
+
+**说明**：
+- `fs_read_file` 是 filesystem MCP Server 自动提供的工具
+- `web_search` 是代码注册的本地工具
+- 两类工具在 LLMNode 中完全等价使用
+
+### 9.4 编程方式使用
+
+```python
+from flux_agent import WorkflowRunner
+
+runner = WorkflowRunner(
+    config_dict=config,
+    mcp_servers=[
+        {
+            "name": "math",
+            "transport": "stdio",
+            "command": "python",
+            "args": ["mcp_servers/math_server.py"],
+        }
+    ],
+)
+```
+
+---
+
+## 十、tools 字段
 
 ### 5.1 配置文件定义
 
@@ -537,7 +647,7 @@ runner = WorkflowRunner(config_path="workflow.json", tools={"search": search})
 
 ---
 
-## 六、retry_policy
+## 十一、retry_policy
 
 ```json
 {
@@ -553,7 +663,7 @@ runner = WorkflowRunner(config_path="workflow.json", tools={"search": search})
 
 ---
 
-## 七、cache_policy
+## 十二、cache_policy
 
 ```json
 {
@@ -567,7 +677,7 @@ runner = WorkflowRunner(config_path="workflow.json", tools={"search": search})
 
 ---
 
-## 八、变量插值
+## 十三、变量插值
 
 ```json
 {

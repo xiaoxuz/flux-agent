@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 from typing import Any, Callable, Dict, List, Optional, Type
+import asyncio
 import json
 import logging
 from pathlib import Path
@@ -26,10 +27,12 @@ class WorkflowParser:
         config: Dict[str, Any],
         custom_nodes: Dict[str, Type] = None,
         tools: Dict[str, Any] = None,
+        mcp_manager=None,
     ):
         self.config = config
         self.custom_nodes = custom_nodes or {}
         self.external_tools = tools or {}
+        self.mcp_manager = mcp_manager
         self.registry = NodeRegistry()
 
         self._register_builtin_nodes()
@@ -96,6 +99,33 @@ class WorkflowParser:
 
         self._tools.update(self.external_tools)
 
+        # 合并 MCP 工具
+        if self.mcp_manager:
+            self._merge_mcp_tools()
+
+    def _merge_mcp_tools(self):
+        """加载 MCP 工具并合并到工具注册表"""
+        self._mcp_tool_names: List[str] = []
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    future = pool.submit(asyncio.run, self.mcp_manager.get_tools())
+                    mcp_tools = future.result(timeout=10)
+            else:
+                mcp_tools = loop.run_until_complete(self.mcp_manager.get_tools())
+        except Exception as e:
+            logger.warning(f"加载 MCP 工具失败: {e}")
+            return
+
+        for tool in mcp_tools:
+            tool_name = getattr(tool, "name", None)
+            if tool_name:
+                self._tools[tool_name] = tool
+                self._mcp_tool_names.append(tool_name)
+                logger.info(f"MCP 工具已注册: {tool_name}")
+
     def _parse_nodes(self) -> Dict[str, Callable]:
         nodes = {}
 
@@ -107,6 +137,14 @@ class WorkflowParser:
             if not node_id or not node_type:
                 logger.warning(f"节点配置不完整: {node_config}")
                 continue
+
+            # 如果有 MCP 工具，自动注入到 LLMNode 的工具列表中
+            if node_type in ("LLMNode", "llm") and hasattr(self, "_mcp_tool_names") and self._mcp_tool_names:
+                existing_tools = config.get("tools", [])
+                for tool_name in self._mcp_tool_names:
+                    if tool_name not in existing_tools:
+                        existing_tools.append(tool_name)
+                config["tools"] = existing_tools
 
             node_class = self.registry.get(node_type)
             if not node_class:

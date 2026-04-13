@@ -13,6 +13,7 @@ from pathlib import Path
 
 from .parser import WorkflowParser, parse_workflow, load_workflow_from_file
 from .state import set_nested_value, get_nested_value
+from flux_agent.mcp import MCPClientManager, mcp_server_from_config
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class WorkflowRunner:
         custom_nodes: Dict[str, type] = None,
         tools: Dict[str, Any] = None,
         knowledge_bases: Dict[str, Any] = None,
+        mcp_servers: List[Dict[str, Any]] = None,
         on_node_input: callable = None,
         on_node_output: callable = None,
     ):
@@ -43,7 +45,13 @@ class WorkflowRunner:
         self.on_node_input = on_node_input
         self.on_node_output = on_node_output
 
-        self.parser = WorkflowParser(self.config, custom_nodes, self.tools)
+        # MCP 支持：优先使用传入参数，其次从 config_dict 提取
+        mcp_configs = mcp_servers or mcp_server_from_config(self.config or {})
+        self.mcp_manager = MCPClientManager(mcp_configs) if mcp_configs else None
+
+        self.parser = WorkflowParser(
+            self.config, custom_nodes, self.tools, mcp_manager=self.mcp_manager
+        )
         self._parsed = None
         self._graph = None
         self._checkpointer = None

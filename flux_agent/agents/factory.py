@@ -22,6 +22,7 @@ def create_agent(
     config: AgentConfig | dict | None = None,
     skills: List[Skill] | None = None,
     skills_dir: str = "skills",
+    mcp_servers: List[dict] | None = None,
     **kwargs,
 ) -> BaseAgent:
     """
@@ -35,6 +36,7 @@ def create_agent(
         config: Agent 配置
         skills: Skill 列表（预加载的 skills）
         skills_dir: Skill 文件目录路径
+        mcp_servers: MCP Server 配置列表
         **kwargs: 传递给具体 Agent 类的额外参数
 
     Returns:
@@ -44,6 +46,17 @@ def create_agent(
         # 基本用法
         agent = create_agent("react", llm=llm, tools=[search])
         result = agent.invoke("今天天气怎么样？")
+
+        # 使用 MCP Server
+        agent = create_agent(
+            "react", llm=llm,
+            mcp_servers=[{
+                "name": "filesystem",
+                "transport": "stdio",
+                "command": "npx",
+                "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+            }]
+        )
 
         # 使用 skills
         loader = SkillLoader("skills")
@@ -62,6 +75,7 @@ def create_agent(
         config=config,
         skills=skills,
         skills_dir=skills_dir,
+        mcp_servers=mcp_servers,
         **kwargs,
     )
 
