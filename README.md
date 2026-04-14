@@ -6,7 +6,7 @@
 
 - **JSON 配置驱动** - 无需编写代码，通过 JSON 配置即可定义复杂工作流
 - **内置通用节点** - LLM 调用、条件分支、工具调用、HTTP 请求等开箱即用
-- **多模式 Agent** - ReAct / Deep / Plan-Execute / Reflexion 四种模式，统一接口
+- **多模式 Agent** - ReAct / Deep / Plan-Execute / Reflexion 四种单 Agent 模式 + Supervisor 多角色协作编排
 - **Skill 系统** - 模块化扩展：领域指令注入、脚本执行、参考资料按需加载
 - **MCP 协议接入** - 支持连接外部 MCP Server，自动将 MCP 工具注入 Agent 工具集
 - **RAG 能力** - 知识库管理、向量检索、检索增强生成
@@ -154,6 +154,19 @@ result = agent.invoke("分析市场趋势并给出建议")
 agent = create_agent("reflexion", llm=llm, max_iterations=3)
 result = agent.invoke("写一个快速排序算法")
 
+# Supervisor 模式 - 多角色协作
+from flux_agent.agents import create_agent, WorkerConfig
+
+supervisor = create_agent(
+    "supervisor",
+    llm=llm,
+    workers={
+        "researcher": WorkerConfig(mode="react", description="负责搜索和调研"),
+        "writer": WorkerConfig(mode="plan_execute", description="负责撰写报告"),
+    },
+)
+result = supervisor.invoke("调研 AI 行业并写一份报告")
+
 # 统一输出
 print(result.answer)    # 最终回答
 print(result.status)    # 执行状态
@@ -166,6 +179,7 @@ print(result.steps)     # 执行过程
 | `deep` | Deep 模式 | 复杂任务、代码生成 |
 | `plan_execute` | 先规划再执行 | 多步骤任务 |
 | `reflexion` | 自我反思改进 | 高质量输出 |
+| `supervisor` | 多角色协作编排 | 复杂任务分解、多 Agent 协同 |
 
 详细文档: [AGENTS.md](docs/AGENTS.md)
 
@@ -299,7 +313,10 @@ flux-agent/
 │   │   ├── react_agent.py    # ReAct 模式
 │   │   ├── deep_agent.py     # Deep 模式
 │   │   ├── plan_execute_agent.py  # Plan-Execute 模式
-│   │   └── reflexion_agent.py     # Reflexion 模式
+│   │   ├── reflexion_agent.py     # Reflexion 模式
+│   │   ├── supervisor_agent.py    # Supervisor 多角色编排
+│   │   ├── multi/                 # 高级多 Agent 协作
+│   │   │   └── mailbox.py         # Mailbox 跨进程协作
 │   │
 │   ├── utils/                # 工具函数
 │   │   └── expression.py     # 表达式解析

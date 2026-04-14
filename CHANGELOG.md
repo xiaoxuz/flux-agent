@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.8] - 2026-04-14
+
+### Added
+
+- **Agent 步骤级实时回调（`on_step`）**：
+  - `AgentConfig` 新增 `on_step` 回调字段：每完成一个步骤即实时推送 `AgentStep`
+  - `BaseAgent` 新增 `_emit_step(step)` 方法：统一触发日志记录 + 用户回调（异常安全）
+  - **ReactAgent**：有 `on_step` 时走 `_run_with_callback`，内部用 `agent.stream()` 逐事件解析并实时回调；无 `on_step` 时代码完全不变，行为一致
+  - **DeepAgent**：同 ReactAgent 设计，stream 模式逐步回调，fallback 场景正确透传
+  - **PlanExecuteAgent** / **ReflexionAgent**：手动循环中每步后调用 `_emit_step`，实时推送中间进度
+  - 回调抛异常不影响主流程执行
+  - 示例：`examples/agents/demo_step_callback.py`
+
+- **Supervisor Agent（多角色协作编排）**：
+  - `SupervisorAgent` 实现任务分解 → 分发执行 → 结果合成三阶段架构
+  - 手动模式（显式指定 workers）与自动模式（LLM 动态规划角色和工具）
+  - `WorkerConfig` 新增 `depends_on` 字段：支持 worker 间依赖关系声明，串行执行时自动传递前置结果
+  - 工具继承机制：worker 按各自 `tools` 字段从 supervisor 完整工具池（含 Skill/MCP 工具）筛选对应工具
+  - 自动模式下 LLM 规划 prompt 注入 Skill catalog 摘要，worker 分解 prompt 展示可用工具列表
+  - 示例：`examples/agents/demo_supervisor.py`（手动模式、自动模式、简单 query、自动模式+Skill+工具）
+
 ## [0.2.7] - 2026-04-13
 
 ### Added

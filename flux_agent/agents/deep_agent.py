@@ -92,6 +92,107 @@ class DeepAgent(BaseAgent):
 
     def _run(self, agent_input: AgentInput) -> AgentOutput:
         """执行 Deep 流程"""
+        if self.config.on_step:
+            return self._run_with_callback(agent_input)
+        return self._run_no_callback(agent_input)
+
+    def _run_with_callback(self, agent_input: AgentInput) -> AgentOutput:
+        """使用 agent.stream() 实现逐步回调"""
+        if self._use_fallback and self._fallback_agent:
+            result = self._fallback_agent._run_with_callback(agent_input) if self.config.on_step else self._fallback_agent._run(agent_input)
+            result.agent_mode = self.mode
+            result.metadata["fallback"] = True
+            return result
+
+        messages = agent_input.to_messages()
+
+        forced_skills = self._resolve_active_skills(agent_input)
+        if forced_skills:
+            self._logger.info(f"强制激活 Skills: {[s.name for s in forced_skills]}")
+            skill_context = "\n\n".join(
+                f"[Skill: {s.name}]\n{s.content}" for s in forced_skills
+            )
+            from langchain_core.messages import SystemMessage
+            messages = [SystemMessage(content=f"# Active Skills\n{skill_context}")] + messages
+
+        agent = self._agent
+        steps = []
+        step_index = 0
+        final_answer = ""
+
+        try:
+            for chunk in agent.stream(
+                {"messages": messages},
+                stream_mode="updates",
+            ):
+                for node_output in chunk.values():
+                    new_messages = node_output.get("messages", [])
+                    for msg in new_messages:
+                        new_steps = self._extract_steps_from_message(msg, step_index)
+                        for s in new_steps:
+                            steps.append(s)
+                            self._emit_step(s)
+                            step_index = s.step_index + 1
+        except Exception as e:
+            return AgentOutput(
+                answer=f"Deep Agent 执行失败: {str(e)}",
+                status=AgentStatus.FAILED,
+                agent_mode=self.mode,
+                error=str(e),
+            )
+
+        if not final_answer:
+            for s in reversed(steps):
+                if s.step_type == StepType.FINAL_ANSWER:
+                    final_answer = s.content
+                    break
+
+        return AgentOutput(
+            answer=final_answer or "未能生成回答",
+            status=AgentStatus.SUCCESS,
+            steps=steps,
+            agent_mode=self.mode,
+            total_steps=len(steps),
+            metadata={"fallback": False},
+        )
+
+    def _extract_steps_from_message(self, msg, step_index: int) -> list[AgentStep]:
+        """从单条消息中提取 AgentStep 列表"""
+        steps_list = []
+        if isinstance(msg, AIMessage):
+            if msg.tool_calls:
+                for tc in msg.tool_calls:
+                    steps_list.append(AgentStep(
+                        step_index=step_index,
+                        step_type=StepType.ACTION,
+                        content=f"调用工具: {tc.get('name', 'unknown')}",
+                        tool_name=tc.get("name"),
+                        tool_input=tc.get("args"),
+                    ))
+                    step_index += 1
+            elif msg.content and not msg.tool_calls:
+                steps_list.append(AgentStep(
+                    step_index=step_index,
+                    step_type=StepType.FINAL_ANSWER,
+                    content=msg.content,
+                ))
+        elif hasattr(msg, 'name') and hasattr(msg, 'content'):
+            content = msg.content
+            if isinstance(content, list):
+                content = " ".join(
+                    item.get("text", "") for item in content if isinstance(item, dict) and item.get("type") == "text"
+                ) or str(content)
+            steps_list.append(AgentStep(
+                step_index=step_index,
+                step_type=StepType.OBSERVATION,
+                content=content[:500] if len(content) > 500 else content,
+                tool_name=getattr(msg, 'name', None),
+                tool_output=content[:500] if len(content) > 500 else content,
+            ))
+        return steps_list
+
+    def _run_no_callback(self, agent_input: AgentInput) -> AgentOutput:
+        """原始 _run 逻辑，无回调时保持完全不变"""
         if self._use_fallback and self._fallback_agent:
             result = self._fallback_agent._run(agent_input)
             result.agent_mode = self.mode

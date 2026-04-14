@@ -433,7 +433,7 @@ def demo_agent_with_dynamic_skills(skills_dir: str):
 
     # 方式一: Agent 自主选择（通过 catalog）
     print("\n--- 方式一: Agent 自主选择 ---")
-    result = agent.invoke("/quick-translate 使用这个技能, 输入：帮我检查一下这段代码: def add(a,b): return a+b")
+    result = agent.invoke(" 翻译：帮我检查一下这段代码: def add(a,b): return a+b")
     print(f"回答: {result.answer[:200]}...")
 
     print(f"回答: {result.answer[:200]}...")
@@ -461,9 +461,9 @@ def main():
 
         # # Agent 集成 - 目录skill
         skills_dir = "/Users/xiaoxuz/Documents/code/python/flux-agent/examples/agents/skills"
-        demo_agent_with_skills(skills_dir)
+        # demo_agent_with_skills(skills_dir)
         # Agent 集成 - 代码定义 skill
-        # demo_agent_with_dynamic_skills(skills_dir)
+        demo_agent_with_dynamic_skills(skills_dir)
 
     finally:
         # 清理临时目录

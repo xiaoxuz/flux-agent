@@ -100,31 +100,33 @@ class PlanExecuteAgent(BaseAgent):
                 content=f"计划第{i+1}步: {p}",
             )
             steps.append(step)
-            self._logger.step(step)
+            self._emit_step(step)
             step_index += 1
-        
+
         # 2. 执行计划
         step_results = []
         current_plan = plan
-        
+
         for i, plan_step in enumerate(current_plan):
             self._logger.info(f"\n执行 Step {i+1}/{len(current_plan)}: {plan_step}")
-            
+
             result = self._execute_step(
                 task=task,
                 plan=current_plan,
                 previous_results=step_results,
                 current_step=plan_step,
             )
-            
+
             step_results.append(result)
-            
-            steps.append(AgentStep(
+
+            obs_step = AgentStep(
                 step_index=step_index,
                 step_type=StepType.OBSERVATION,
                 content=result[:500] if len(result) > 500 else result,
                 metadata={"plan_step_index": i},
-            ))
+            )
+            steps.append(obs_step)
+            self._emit_step(obs_step)
             step_index += 1
             
             # 3. 检查是否需要重规划
@@ -146,11 +148,13 @@ class PlanExecuteAgent(BaseAgent):
         # 4. 生成最终答案
         final_answer = step_results[-1] if step_results else "未能生成回答"
         
-        steps.append(AgentStep(
+        answer_step = AgentStep(
             step_index=step_index,
             step_type=StepType.FINAL_ANSWER,
             content=final_answer[:500] if len(final_answer) > 500 else final_answer,
-        ))
+        )
+        steps.append(answer_step)
+        self._emit_step(answer_step)
         
         return AgentOutput(
             answer=final_answer,

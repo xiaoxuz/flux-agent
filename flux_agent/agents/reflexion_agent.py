@@ -116,7 +116,7 @@ class ReflexionAgent(BaseAgent):
                 metadata={"attempt_index": iteration},
             )
             steps.append(step)
-            self._logger.step(step)
+            self._emit_step(step)
             step_index += 1
             
             label = "初始回答" if iteration == 0 else f"第{iteration+1}轮改进"
@@ -156,7 +156,7 @@ class ReflexionAgent(BaseAgent):
                 metadata={"reflection_index": iteration},
             )
             steps.append(step)
-            self._logger.step(step)
+            self._emit_step(step)
             
             self._logger.info(f"  反思: {reflection[:200]}...")
             
@@ -169,7 +169,7 @@ class ReflexionAgent(BaseAgent):
             content=current_answer,
         )
         steps.append(step)
-        self._logger.step(step)
+        self._emit_step(step)
         
         return AgentOutput(
             answer=current_answer,

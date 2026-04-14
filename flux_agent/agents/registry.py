@@ -75,11 +75,13 @@ def _register_builtin_agents():
     from .deep_agent import DeepAgent
     from .plan_execute_agent import PlanExecuteAgent
     from .reflexion_agent import ReflexionAgent
-    
+    from .supervisor_agent import SupervisorAgent
+
     AgentRegistry.register_class(AgentMode.REACT, ReactAgent)
     AgentRegistry.register_class(AgentMode.DEEP, DeepAgent)
     AgentRegistry.register_class(AgentMode.PLAN_EXECUTE, PlanExecuteAgent)
     AgentRegistry.register_class(AgentMode.REFLEXION, ReflexionAgent)
+    AgentRegistry.register_class(AgentMode.SUPERVISOR, SupervisorAgent)
 
 
 _register_builtin_agents()

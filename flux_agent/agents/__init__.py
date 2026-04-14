@@ -20,6 +20,9 @@ from .react_agent import ReactAgent
 from .deep_agent import DeepAgent
 from .plan_execute_agent import PlanExecuteAgent
 from .reflexion_agent import ReflexionAgent
+from .supervisor_agent import SupervisorAgent
+from .factory import WorkerConfig
+from .multi.mailbox import Mailbox, MailboxMessage, InMemoryMailbox, FileMailbox
 
 __all__ = [
     "create_agent",
@@ -47,4 +50,11 @@ __all__ = [
     "DeepAgent",
     "PlanExecuteAgent",
     "ReflexionAgent",
+    "SupervisorAgent",
+    "WorkerConfig",
+
+    "Mailbox",
+    "MailboxMessage",
+    "InMemoryMailbox",
+    "FileMailbox",
 ]

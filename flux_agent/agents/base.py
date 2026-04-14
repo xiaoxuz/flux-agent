@@ -8,7 +8,7 @@ import uuid
 import time
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Optional, List
+from typing import Any, Optional, List, Callable
 
 from pydantic import BaseModel, Field
 from langchain_core.language_models import BaseChatModel
@@ -76,6 +76,7 @@ class AgentMode(str, Enum):
     DEEP = "deep"
     PLAN_EXECUTE = "plan_execute"
     REFLEXION = "reflexion"
+    SUPERVISOR = "supervisor"
 
 
 class AgentStatus(str, Enum):
@@ -174,6 +175,12 @@ class AgentConfig(BaseModel):
     temperature: float = Field(default=0.0, description="LLM 温度")
     callbacks: Optional[list] = Field(default=None, description="回调列表")
     extra: dict[str, Any] = Field(default_factory=dict, description="额外配置")
+    on_step: Optional[Callable[[AgentStep], None]] = Field(
+        default=None, description="每个步骤完成时的回调函数"
+    )
+    # 多 Agent 协作
+    mailbox: Optional[Any] = Field(default=None, description="Agent 间通信邮箱 (Mailbox 实例)")
+    agent_id: Optional[str] = Field(default=None, description="Agent 唯一标识，用于 mailbox 寻址")
 
 
 class BaseAgent(ABC):
@@ -239,6 +246,15 @@ class BaseAgent(ABC):
     def _run(self, agent_input: AgentInput) -> AgentOutput:
         """执行具体的 agent 逻辑"""
         ...
+
+    def _emit_step(self, step: AgentStep) -> None:
+        """统一触发 step 回调"""
+        self._logger.step(step)
+        if self.config.on_step:
+            try:
+                self.config.on_step(step)
+            except Exception:
+                self._logger.warning("on_step callback error")
     
     def invoke(self, input: str | dict | AgentInput, **kwargs) -> AgentOutput:
         """统一调用入口"""
