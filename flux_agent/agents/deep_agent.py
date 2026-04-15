@@ -12,8 +12,10 @@ from langchain_core.messages import AIMessage
 from .base import (
     BaseAgent, AgentMode, AgentInput, AgentOutput,
     AgentStep, AgentConfig, AgentStatus, StepType,
+    TokenUsageSummary,
 )
 from .skill import Skill
+from .utils.token_usage import extract_usage_from_message, aggregate_details_to_summary
 
 
 class DeepAgent(BaseAgent):
@@ -119,6 +121,7 @@ class DeepAgent(BaseAgent):
         steps = []
         step_index = 0
         final_answer = ""
+        details = []
 
         try:
             for chunk in agent.stream(
@@ -128,6 +131,11 @@ class DeepAgent(BaseAgent):
                 for node_output in chunk.values():
                     new_messages = node_output.get("messages", [])
                     for msg in new_messages:
+                        # 提取 AIMessage 的 token usage
+                        if isinstance(msg, AIMessage) and msg.usage_metadata:
+                            if usage := extract_usage_from_message(msg, step_index=step_index, operation="deep_step"):
+                                details.append(usage)
+
                         new_steps = self._extract_steps_from_message(msg, step_index)
                         for s in new_steps:
                             steps.append(s)
@@ -147,12 +155,16 @@ class DeepAgent(BaseAgent):
                     final_answer = s.content
                     break
 
+        token_summary = aggregate_details_to_summary(details)
+
         return AgentOutput(
             answer=final_answer or "未能生成回答",
             status=AgentStatus.SUCCESS,
             steps=steps,
             agent_mode=self.mode,
             total_steps=len(steps),
+            total_tokens=token_summary.total_tokens or None,
+            token_usage=token_summary,
             metadata={"fallback": False},
         )
 
@@ -227,11 +239,16 @@ class DeepAgent(BaseAgent):
         steps = []
         step_index = 0
         final_answer = ""
-        
+        details = []
+
         result_messages = result.get("messages", [])
-        
+
         for msg in result_messages:
             if isinstance(msg, AIMessage):
+                # 提取 token usage
+                if msg.usage_metadata:
+                    if usage := extract_usage_from_message(msg, step_index=step_index, operation="deep_invoke"):
+                        details.append(usage)
                 if msg.tool_calls:
                     for tc in msg.tool_calls:
                         steps.append(AgentStep(
@@ -265,12 +282,16 @@ class DeepAgent(BaseAgent):
                 if isinstance(msg, AIMessage) and msg.content:
                     final_answer = msg.content
                     break
-        
+
+        token_summary = aggregate_details_to_summary(details)
+
         return AgentOutput(
             answer=final_answer or "未能生成回答",
             status=AgentStatus.SUCCESS,
             steps=steps,
             agent_mode=self.mode,
             total_steps=len(steps),
+            total_tokens=token_summary.total_tokens or None,
+            token_usage=token_summary,
             metadata={"fallback": False},
         )

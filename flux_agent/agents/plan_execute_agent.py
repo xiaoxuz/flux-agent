@@ -13,9 +13,11 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from .base import (
     BaseAgent, AgentMode, AgentInput, AgentOutput,
     AgentStep, AgentConfig, AgentStatus, StepType,
+    TokenUsageSummary,
 )
 from .skill import Skill
 from .utils.prompts import PromptLibrary
+from .utils.token_usage import extract_usage_from_message, aggregate_details_to_summary
 
 
 class PlanExecuteAgent(BaseAgent):
@@ -85,9 +87,10 @@ class PlanExecuteAgent(BaseAgent):
 
         steps = []
         step_index = 0
+        details = []
 
         # 1. 生成计划
-        plan = self._generate_plan(task)
+        plan = self._generate_plan(task, details)
         
         self._logger.info(f"\n生成计划 ({len(plan)} 步):")
         for i, p in enumerate(plan):
@@ -115,6 +118,8 @@ class PlanExecuteAgent(BaseAgent):
                 plan=current_plan,
                 previous_results=step_results,
                 current_step=plan_step,
+                step_index=step_index,
+                details=details,
             )
 
             step_results.append(result)
@@ -136,6 +141,8 @@ class PlanExecuteAgent(BaseAgent):
                     original_plan=current_plan,
                     completed_steps=current_plan[:i+1],
                     completed_results=step_results,
+                    step_index=step_index,
+                    details=details,
                 )
                 
                 if not should_continue:
@@ -156,19 +163,23 @@ class PlanExecuteAgent(BaseAgent):
         steps.append(answer_step)
         self._emit_step(answer_step)
         
+        token_summary = aggregate_details_to_summary(details)
+
         return AgentOutput(
             answer=final_answer,
             status=AgentStatus.SUCCESS,
             steps=steps,
             agent_mode=self.mode,
             total_steps=len(steps),
+            total_tokens=token_summary.total_tokens or None,
+            token_usage=token_summary,
             metadata={
                 "plan": current_plan,
                 "enable_replan": self.enable_replan,
             },
         )
     
-    def _generate_plan(self, task: str) -> list[str]:
+    def _generate_plan(self, task: str, details: list) -> list[str]:
         """生成执行计划"""
         prompt_template = PromptLibrary.get("plan_execute.planner")
         prompt = prompt_template.format(task=task)
@@ -186,6 +197,9 @@ class PlanExecuteAgent(BaseAgent):
             HumanMessage(content=prompt),
         ])
 
+        if usage := extract_usage_from_message(response, operation="generate_plan"):
+            details.append(usage)
+
         return self._parse_plan(response.content)
     
     def _execute_step(
@@ -194,34 +208,40 @@ class PlanExecuteAgent(BaseAgent):
         plan: list[str],
         previous_results: list[str],
         current_step: str,
+        step_index: int,
+        details: list,
     ) -> str:
         """执行单步"""
         plan_text = "\n".join([f"Step {i+1}: {s}" for i, s in enumerate(plan)])
         prev_text = "\n".join([
             f"Step {i+1} 结果: {r}" for i, r in enumerate(previous_results)
         ]) if previous_results else "无"
-        
+
         prompt_template = PromptLibrary.get("plan_execute.executor")
         exec_prompt = prompt_template.format(
             plan=plan_text,
             previous_results=prev_text,
             current_step=current_step,
         )
-        
+
         if self._executor and self.tools:
             exec_result = self._executor.invoke({
                 "messages": [HumanMessage(content=exec_prompt)]
             })
-            
+
             result_text = ""
             for msg in reversed(exec_result.get("messages", [])):
                 if hasattr(msg, 'content') and msg.type == "ai" and not getattr(msg, "tool_calls", None):
                     result_text = msg.content
+                    if usage := extract_usage_from_message(msg, step_index=step_index, operation="execute_step"):
+                        details.append(usage)
                     break
-            
+
             return result_text or "执行完成"
         else:
             response = self.llm.invoke([HumanMessage(content=exec_prompt)])
+            if usage := extract_usage_from_message(response, step_index=step_index, operation="execute_step"):
+                details.append(usage)
             return response.content
     
     def _replan(
@@ -230,23 +250,27 @@ class PlanExecuteAgent(BaseAgent):
         original_plan: list[str],
         completed_steps: list[str],
         completed_results: list[str],
+        step_index: int,
+        details: list,
     ) -> tuple[bool, list[str] | None]:
         """重规划，返回 (是否继续, 新计划)"""
         plan_text = "\n".join([f"Step {i+1}: {s}" for i, s in enumerate(original_plan)])
         results_text = "\n".join([
             f"Step {i+1} 结果: {r}" for i, r in enumerate(completed_results)
         ])
-        
+
         prompt_template = PromptLibrary.get("plan_execute.replanner")
         prompt = prompt_template.format(
             task=task,
             plan=plan_text,
             completed_results=results_text,
         )
-        
+
         response = self.llm.invoke([HumanMessage(content=prompt)])
+        if usage := extract_usage_from_message(response, step_index=step_index, operation="replan"):
+            details.append(usage)
         content = response.content
-        
+
         if "FINAL_ANSWER:" in content.upper():
             return False, None
         

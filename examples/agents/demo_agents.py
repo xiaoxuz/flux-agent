@@ -53,6 +53,7 @@ def demo_react_agent():
     print(f"\n回答: {result.answer[:200]}...")
     print(f"状态: {result.status.value}")
     print(f"步数: {result.total_steps}")
+    print(f"token: {result.token_usage}")
     print()
 
 
@@ -76,6 +77,7 @@ def demo_plan_execute_agent():
     print(f"\n回答: {result.answer[:300]}...")
     print(f"状态: {result.status.value}")
     print(f"计划步数: {len(result.metadata.get('plan', []))}")
+    print(f"token: {result.token_usage}")
     print()
 
 
@@ -104,6 +106,7 @@ def demo_reflexion_agent():
     # 查看反思过程
     reflections = result.get_steps_by_type(StepType.REFLECTION)
     print(f"反思次数: {len(reflections)}")
+    print(f"token: {result.token_usage}")
     print()
 
 
@@ -136,9 +139,9 @@ def main():
     
     # 简单演示（需要 API key）
     try:
-        demo_react_agent()
+        # demo_react_agent()
         # demo_plan_execute_agent()
-        # demo_reflexion_agent()
+        demo_reflexion_agent()
         # demo_unified_output()
     except Exception as e:
         print(f"运行示例需要配置 OPENAI_API_KEY: {e}")

@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.9] - 2026-04-15
+
+### Added
+
+- **Bash 执行工具（`flux_agent/tools/bash_tool.py`）**：
+  - 新增 `bash` 工具：执行 shell 命令并返回输出，支持超时控制
+  - 双向优先级引导：module docstring 声明"什么时候推荐用"（系统命令、Git、python -c 数据处理、进程管理等）和"什么时候不用"（find/grep/cat/head/tail/sed/awk/echo → 用专用工具）
+  - 函数级 docstring 同样声明适用/不适用场景，指导 LLM 工具选择
+  - 安全拦截：自动拦截 `rm`（所有 rm 命令）、`dd if=`、`mkfs`、`> /dev/sd` 等危险操作
+  - 参数：`command`（命令字符串）、`timeout`（超时秒数）、`run_in_background`（后台运行）
+
+- **专用工具优先级 docstring 更新（`flux_agent/tools/file_ops.py`）**：
+  - 所有 5 个工具的 docstring 改为 ALWAYS/NEVER 双向引用模式
+  - `glob_search`: "ALWAYS 使用本工具进行文件路径搜索。NEVER 通过 bash 执行 find 或 ls。"
+  - `grep_search`: "ALWAYS 使用本工具进行文件内容搜索。NEVER 通过 bash 执行 grep 或 rg。"
+  - `file_read`: "ALWAYS 使用本工具读取文件内容。NEVER 通过 bash 执行 cat/head/tail。"
+  - `file_edit`: "ALWAYS 使用本工具编辑文件内容。NEVER 通过 bash 执行 sed/awk。"
+  - `file_write`: "ALWAYS 使用本工具写入文件。NEVER 通过 bash 执行 echo>/cat<<EOF。"
+
+- **SupervisorAgent 自动模式优化**：
+  - LLM 判断无需多角色时，不再直接裸回复，而是创建 ReactAgent（带完整工具链）进行回复
+  - 单角色场景下 Agent 也能使用 bash、file_ops、skills、MCP 等所有工具
+  - Token usage 正确合并到最终输出
+
+- **WorkflowRunner checkpointer 可选化**：
+  - 新增 `use_checkpointer` 参数，默认 `False`
+  - 不启用时 `builder.compile()` 不传 checkpointer，无内存泄露风险
+  - 启用时才创建 MemorySaver 并传入 compile
+  - `resume/get_state/get_state_history/update_state` 在未启用 checkpointer 时抛 RuntimeError 提示
+
+### Changed
+
+- `_get_priority_tools()` 返回顺序：`bash` → `glob_search` → `grep_search` → `file_read` → `file_edit` → `file_write`
+
 ## [0.2.8] - 2026-04-14
 
 ### Added

@@ -12,8 +12,10 @@ from langchain_core.messages import AIMessage
 from .base import (
     BaseAgent, AgentMode, AgentInput, AgentOutput,
     AgentStep, AgentConfig, AgentStatus, StepType,
+    TokenUsageSummary,
 )
 from .skill import Skill
+from .utils.token_usage import extract_usage_from_message, aggregate_details_to_summary
 
 
 class ReactAgent(BaseAgent):
@@ -119,6 +121,7 @@ class ReactAgent(BaseAgent):
         step_index = 0
         final_answer = ""
         seen_msg_ids = set()
+        details = []
 
         try:
             for chunk in agent.stream(
@@ -133,6 +136,11 @@ class ReactAgent(BaseAgent):
                         if msg_id in seen_msg_ids:
                             continue
                         seen_msg_ids.add(msg_id)
+
+                        # 提取 AIMessage 的 token usage
+                        if isinstance(msg, AIMessage) and msg.usage_metadata:
+                            if usage := extract_usage_from_message(msg, step_index=step_index, operation="react_step"):
+                                details.append(usage)
 
                         new_steps = self._extract_steps_from_message(msg, step_index)
                         for s in new_steps:
@@ -155,12 +163,16 @@ class ReactAgent(BaseAgent):
                     final_answer = msg.content
                     break
 
+        token_summary = aggregate_details_to_summary(details)
+
         return AgentOutput(
             answer=final_answer or "未能生成回答",
             status=AgentStatus.SUCCESS,
             steps=steps,
             agent_mode=self.mode,
             total_steps=len(steps),
+            total_tokens=token_summary.total_tokens or None,
+            token_usage=token_summary,
         )
 
     def _run_no_callback(self, agent_input: AgentInput) -> AgentOutput:
@@ -199,11 +211,16 @@ class ReactAgent(BaseAgent):
         steps = []
         step_index = 0
         final_answer = ""
-        
+        details = []
+
         result_messages = result.get("messages", [])
-        
+
         for msg in result_messages:
             if isinstance(msg, AIMessage):
+                # 提取 token usage
+                if msg.usage_metadata:
+                    if usage := extract_usage_from_message(msg, step_index=step_index, operation="react_invoke"):
+                        details.append(usage)
                 if msg.tool_calls:
                     for tc in msg.tool_calls:
                         step = AgentStep(
@@ -251,12 +268,16 @@ class ReactAgent(BaseAgent):
                     final_answer = msg.content
                     break
 
+        token_summary = aggregate_details_to_summary(details)
+
         return AgentOutput(
             answer=final_answer or "未能生成回答",
             status=AgentStatus.SUCCESS,
             steps=steps,
             agent_mode=self.mode,
             total_steps=len(steps),
+            total_tokens=token_summary.total_tokens or None,
+            token_usage=token_summary,
         )
 
     def _extract_steps_from_message(self, msg, step_index: int) -> list[AgentStep]:

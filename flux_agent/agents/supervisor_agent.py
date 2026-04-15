@@ -17,10 +17,12 @@ from langchain_core.tools import BaseTool
 from .base import (
     BaseAgent, AgentMode, AgentInput, AgentOutput,
     AgentConfig, AgentStatus, StepType, AgentStep,
+    TokenUsageSummary,
 )
 from .factory import create_agent, WorkerConfig
 from .skill import Skill
 from .utils.prompts import PromptLibrary
+from .utils.token_usage import extract_usage_from_message, aggregate_details_to_summary, merge_usage_summaries
 
 logger = logging.getLogger(__name__)
 
@@ -115,25 +117,40 @@ class SupervisorAgent(BaseAgent):
     def _run(self, agent_input: AgentInput) -> AgentOutput:
         """三阶段：分解 -> 分发 -> 合成（自动模式下先规划 worker）"""
         query = agent_input.query
+        details = []
 
         # 自动模式：动态规划 worker
         if self._auto_mode and not self._workers:
-            worker_plan = self._plan_workers(query)
+            worker_plan = self._plan_workers(query, details)
             if not worker_plan:
-                # LLM 判断单角色够用，直接回复
-                self._logger.info("SubAgent - 自动模式：LLM 判断无需多角色，直接回复")
-                resp = self.llm.invoke([("user", query)])
+                # LLM 判断单角色够用，用 ReactAgent 直接回复（带完整工具链）
+                self._logger.info("SubAgent - 自动模式：LLM 判断无需多角色，创建 ReactAgent 直接回复")
+                all_tools = self._get_all_tools()
+                single_agent = create_agent(
+                    mode="react",
+                    llm=self.llm,
+                    tools=all_tools,
+                    config=self.config,
+                    skills=self._skill_registry.invocable_skills if self._skill_registry and self._skill_registry.invocable_skills else None,
+                )
+                output = single_agent.invoke(query)
+                # 合并 ReactAgent 的 token usage
+                if output.token_usage:
+                    details.extend(output.token_usage.details)
+                token_summary = aggregate_details_to_summary(details)
                 return AgentOutput(
-                    answer=resp.content.strip(),
-                    status=AgentStatus.SUCCESS,
+                    answer=output.answer,
+                    status=output.status,
                     agent_mode=self.mode,
-                    total_steps=1,
+                    total_steps=output.total_steps,
+                    total_tokens=token_summary.total_tokens or None,
+                    token_usage=token_summary,
                 )
             self._create_workers_from_plan(worker_plan)
             self._logger.info(f"SubAgent-自动模式：创建了 {len(self._workers)} 个 worker: {list(self._workers.keys())}")
 
         # Phase 1: 任务分解
-        subtasks = self._decompose(query)
+        subtasks = self._decompose(query, details)
         if not subtasks:
             return AgentOutput(
                 answer="无法分解任务，没有可用的 worker 能处理该请求",
@@ -150,7 +167,8 @@ class SupervisorAgent(BaseAgent):
         ))
 
         # Phase 2: 分发执行
-        worker_results = self._dispatch(subtasks)
+        worker_results, worker_outputs = self._dispatch_with_output(subtasks)
+
         results_text = ""
         for i, (worker_name, result) in enumerate(worker_results.items()):
             results_text += f"\n--- {worker_name} ---\n{result}\n"
@@ -163,16 +181,24 @@ class SupervisorAgent(BaseAgent):
             ))
 
         # Phase 3: 结果合成
-        final_answer = self._synthesize(query, worker_results)
+        final_answer = self._synthesize(query, worker_results, details)
+
+        # 聚合 token usage：orchestrator 自身 + 所有 worker
+        token_summary = aggregate_details_to_summary(details)
+        for w_out in worker_outputs.values():
+            if w_out and w_out.token_usage:
+                token_summary = merge_usage_summaries(token_summary, w_out.token_usage)
 
         return AgentOutput(
             answer=final_answer,
             status=AgentStatus.SUCCESS,
             agent_mode=self.mode,
             total_steps=len(worker_results) + 1,
+            total_tokens=token_summary.total_tokens or None,
+            token_usage=token_summary,
         )
 
-    def _decompose(self, query: str) -> list[dict]:
+    def _decompose(self, query: str, details: list) -> list[dict]:
         """Phase 1: LLM 分解任务为子任务列表"""
         worker_desc = "\n".join(
             f"- {name}: {w.config.description} (可用工具: {[t.name for t in w.agent.tools]})"
@@ -186,6 +212,8 @@ class SupervisorAgent(BaseAgent):
             query=query,
         )
         resp = self.llm.invoke([("user", prompt)])
+        if usage := extract_usage_from_message(resp, operation="decompose"):
+            details.append(usage)
         raw = resp.content.strip()
 
         # 尝试提取 JSON
@@ -217,12 +245,14 @@ class SupervisorAgent(BaseAgent):
         return []
 
     def _dispatch(self, subtasks: list[dict]) -> dict[str, str]:
-        """Phase 2: 分发子任务到对应 worker 执行
+        """Phase 2: 分发子任务到对应 worker 执行（向后兼容接口）"""
+        results, _ = self._dispatch_with_output(subtasks)
+        return results
 
-        如果子任务存在 depends_on，则强制串行执行并将前置结果拼入 task_description。
-        无依赖的子任务可并行执行。
-        """
+    def _dispatch_with_output(self, subtasks: list[dict]) -> tuple[dict[str, str], dict[str, AgentOutput]]:
+        """Phase 2: 分发子任务，返回 (string结果, AgentOutput结果)"""
         results: dict[str, str] = {}
+        outputs: dict[str, AgentOutput] = {}
 
         # 检查是否有依赖关系
         has_deps = any(st.get("depends_on") for st in subtasks)
@@ -244,7 +274,9 @@ class SupervisorAgent(BaseAgent):
                         desc += f"\n\n--- 来自 {dep} 的结果 ---\n{results[dep]}"
 
                 try:
-                    results[wname] = self._run_worker(wname, desc)
+                    output = self._run_worker(wname, desc)
+                    results[wname] = output.answer
+                    outputs[wname] = output
                 except Exception as e:
                     results[wname] = f"执行出错: {e}"
                 if self._parallel is False:
@@ -260,23 +292,28 @@ class SupervisorAgent(BaseAgent):
                 for fut in as_completed(futures):
                     wname = futures[fut]
                     try:
-                        results[wname] = fut.result()
+                        output = fut.result()
+                        results[wname] = output.answer
+                        outputs[wname] = output
                     except Exception as e:
                         results[wname] = f"执行出错: {e}"
 
-        return results
+        return results, outputs
 
-    def _run_worker(self, worker_name: str, task_desc: str) -> str:
-        """调用单个 worker agent"""
+    def _run_worker(self, worker_name: str, task_desc: str) -> AgentOutput:
+        """调用单个 worker agent，返回完整 AgentOutput"""
         worker = self._workers.get(worker_name)
         if not worker:
-            return f"Worker '{worker_name}' 不存在"
+            return AgentOutput(
+                answer=f"Worker '{worker_name}' 不存在",
+                status=AgentStatus.FAILED,
+                agent_mode=self.mode,
+            )
 
         self._logger.info(f"Dispatch to '{worker_name}': {task_desc}")
-        output = worker.agent.invoke(task_desc)
-        return output.answer
+        return worker.agent.invoke(task_desc)
 
-    def _synthesize(self, query: str, worker_results: dict[str, str]) -> str:
+    def _synthesize(self, query: str, worker_results: dict[str, str], details: list) -> str:
         """Phase 3: LLM 合成最终回答"""
         results_text = "\n".join(
             f"**{name}**:\n{result}" for name, result in worker_results.items()
@@ -287,9 +324,11 @@ class SupervisorAgent(BaseAgent):
             worker_results=results_text,
         )
         resp = self.llm.invoke([("user", prompt)])
+        if usage := extract_usage_from_message(resp, operation="synthesize"):
+            details.append(usage)
         return resp.content.strip()
 
-    def _plan_workers(self, query: str) -> list[dict]:
+    def _plan_workers(self, query: str, details: list) -> list[dict]:
         """自动模式：LLM 规划需要哪些 worker 角色"""
         # 获取所有可用工具，注入到 prompt 中供 LLM 分配
         all_tools = self._get_all_tools()
@@ -313,6 +352,8 @@ class SupervisorAgent(BaseAgent):
             available_tools=available_tools_str,
         )
         resp = self.llm.invoke([("user", prompt)])
+        if usage := extract_usage_from_message(resp, operation="plan_workers"):
+            details.append(usage)
         raw = resp.content.strip()
 
         if raw.startswith("```"):

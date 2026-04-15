@@ -29,9 +29,9 @@ def get_city() -> str:
 def get_weather(city: str) -> str:
     """获取城市天气（模拟）"""
     return f"{city}今天天气晴朗，温度25℃"
-
 DEFAULT_BASE_URL = os.getenv("OPENAI_BASE_URL")
 DEFAULT_API_KEY = os.getenv("OPENAI_API_KEY")
+
 
 def main():
     # if not os.environ.get("OPENAI_API_KEY"):
@@ -108,7 +108,7 @@ def main():
     print("=" * 50)
 
     runner = WorkflowRunner(config_dict=config, tools={"greet":greet, "get_city":get_city, "get_weather":get_weather})
-    result = runner.invoke({"data": {"question": " 你是什么模型", "image_path": "https://img.x.cc/cff03c74a7cf7262cbd99fe16f932772.jpg"}})
+    result = runner.invoke({"data": {"question": " 你是什么模型", "image_path": "https://img.x.cc/a78f8509db7dfcb55861757ae2bc9e4b.jpg"}})
 
     print(f"回答: {result.get('data', {}).get('response', {})}")
     print("=" * 50)

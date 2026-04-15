@@ -97,6 +97,23 @@ class StepType(str, Enum):
     FINAL_ANSWER = "final_answer"
 
 
+class TokenUsageDetail(BaseModel):
+    """单次 LLM 调用的 token 消耗明细"""
+    step_index: int = Field(default=-1, description="对应步骤序号，-1=非步骤级调用")
+    operation: str = Field(default="", description="操作描述，如 'generate_plan'")
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_tokens: int = 0
+
+
+class TokenUsageSummary(BaseModel):
+    """完整的 token 使用汇总"""
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_tokens: int = 0
+    details: List[TokenUsageDetail] = Field(default_factory=list)
+
+
 class AgentInput(BaseModel):
     """统一的 Agent 输入"""
     query: str = Field(..., description="用户的问题/任务描述")
@@ -135,6 +152,7 @@ class AgentStep(BaseModel):
     tool_output: Optional[str] = Field(default=None, description="工具输出")
     timestamp: float = Field(default_factory=time.time)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    token_usage: Optional[TokenUsageDetail] = Field(default=None, description="该步骤对应的 LLM token 消耗")
 
 
 class AgentOutput(BaseModel):
@@ -145,7 +163,8 @@ class AgentOutput(BaseModel):
     agent_mode: AgentMode = Field(..., description="使用的 Agent 模式")
     run_id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="本次运行ID")
     total_steps: int = Field(default=0, description="总步数")
-    total_tokens: Optional[int] = Field(default=None, description="消耗的总 token 数")
+    total_tokens: Optional[int] = Field(default=None, description="消耗的总 token 数（向后兼容）")
+    token_usage: Optional[TokenUsageSummary] = Field(default=None, description="完整的 token 使用明细")
     elapsed_time: Optional[float] = Field(default=None, description="耗时(秒)")
     error: Optional[str] = Field(default=None, description="错误信息")
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -160,11 +179,18 @@ class AgentOutput(BaseModel):
 
     def summary(self) -> str:
         """生成执行摘要"""
+        tokens_str = "N/A"
+        if self.token_usage and self.token_usage.total_tokens > 0:
+            tu = self.token_usage
+            tokens_str = f"{tu.total_tokens}(in={tu.input_tokens},out={tu.output_tokens})"
+        elif self.total_tokens:
+            tokens_str = str(self.total_tokens)
+        time_str = f"Time: {self.elapsed_time:.2f}s" if self.elapsed_time else "Time: N/A"
         return (
             f"[{self.agent_mode.value}] Status: {self.status.value} | "
             f"Steps: {self.total_steps} | "
-            f"Tokens: {self.total_tokens or 'N/A'} | "
-            f"Time: {self.elapsed_time:.2f}s" if self.elapsed_time else "Time: N/A"
+            f"Tokens: {tokens_str} | "
+            f"{time_str}"
         )
 
 
@@ -462,9 +488,32 @@ class BaseAgent(ABC):
 
         return self._cached_mcp_tools
 
+    def _get_priority_tools(self) -> list[BaseTool]:
+        """返回优先级专用工具列表（Bash + 文件操作类）。
+
+        这些工具会被自动注入到所有 Agent 模式中，
+        让 LLM 优先使用专用工具而非直接写 shell 命令。
+        Bash 工具放在最前，附带"何时不用 Bash"的优先级指导；
+        文件操作工具紧随其后，提供具体的替代方案。
+        """
+        from flux_agent.tools.bash_tool import bash
+        from flux_agent.tools.file_ops import (
+            glob_search,
+            grep_search,
+            file_read,
+            file_edit,
+            file_write,
+        )
+        return [bash, glob_search, grep_search, file_read, file_edit, file_write]
+
     def _get_all_tools(self) -> list[BaseTool]:
-        """获取用户 tools + skill tools + MCP tools 的合并列表"""
-        return self.tools + self._get_skill_tools() + self._get_mcp_tools()
+        """获取用户 tools + priority tools + skill tools + MCP tools 的合并列表"""
+        return (
+            self.tools
+            + self._get_priority_tools()
+            + self._get_skill_tools()
+            + self._get_mcp_tools()
+        )
     
     def __repr__(self) -> str:
         tool_names = [t.name for t in self.tools] if self.tools else []

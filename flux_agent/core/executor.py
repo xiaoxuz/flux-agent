@@ -31,6 +31,7 @@ class WorkflowRunner:
         mcp_servers: List[Dict[str, Any]] = None,
         on_node_input: callable = None,
         on_node_output: callable = None,
+        use_checkpointer: bool = False,
     ):
         if config_path:
             self.config = self._load_config_from_file(config_path)
@@ -41,7 +42,7 @@ class WorkflowRunner:
 
         self.custom_nodes = custom_nodes or {}
         self.tools = tools or {}
-        self.checkpointer_type = "memory"
+        self.use_checkpointer = use_checkpointer
         self.on_node_input = on_node_input
         self.on_node_output = on_node_output
 
@@ -115,8 +116,11 @@ class WorkflowRunner:
         if self._parsed["entry_point"]:
             builder.add_edge(START, self._parsed["entry_point"])
 
-        checkpointer = self._init_checkpointer()
-        self._graph = builder.compile(checkpointer=checkpointer)
+        if self.use_checkpointer:
+            checkpointer = self._init_checkpointer()
+            self._graph = builder.compile(checkpointer=checkpointer)
+        else:
+            self._graph = builder.compile()
 
         return self._graph
 
@@ -258,6 +262,8 @@ class WorkflowRunner:
             yield chunk
 
     def resume(self, thread_id: str, resume_value: Any) -> Dict[str, Any]:
+        if not self.use_checkpointer:
+            raise RuntimeError("resume 需要启用 checkpointer，请设置 use_checkpointer=True")
         try:
             from langgraph.types import Command
         except ImportError:
@@ -269,18 +275,24 @@ class WorkflowRunner:
         return graph.invoke(Command(resume=resume_value), config=config)
 
     def get_state(self, thread_id: str, subgraphs: bool = False) -> Dict[str, Any]:
+        if not self.use_checkpointer:
+            raise RuntimeError("get_state 需要启用 checkpointer，请设置 use_checkpointer=True")
         graph = self._build_graph()
         config = {"configurable": {"thread_id": thread_id}}
 
         return graph.get_state(config, subgraphs=subgraphs)
 
     def get_state_history(self, thread_id: str):
+        if not self.use_checkpointer:
+            raise RuntimeError("get_state_history 需要启用 checkpointer，请设置 use_checkpointer=True")
         graph = self._build_graph()
         config = {"configurable": {"thread_id": thread_id}}
 
         return graph.get_state_history(config)
 
     def update_state(self, thread_id: str, values: Dict[str, Any]) -> None:
+        if not self.use_checkpointer:
+            raise RuntimeError("update_state 需要启用 checkpointer，请设置 use_checkpointer=True")
         graph = self._build_graph()
         config = {"configurable": {"thread_id": thread_id}}
 

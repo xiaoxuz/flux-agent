@@ -222,6 +222,9 @@ class LLMNode(BaseNode):
 
         if tools_to_bind:
             self._bound_tools = llm.bind_tools(tools_to_bind)
+            # 应用 tool_choice 配置（默认 "auto"，可设为具体工具名强制选择）
+            if self.config.tool_choice and self.config.tool_choice != "auto":
+                self._bound_tools = self._bound_tools.bind(tool_choice=self.config.tool_choice)
             return self._bound_tools
 
         return llm

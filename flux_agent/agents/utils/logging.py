@@ -66,5 +66,5 @@ class AgentLogger:
             self.logger.info(f"🏁 完成 | 步数: {total_steps} | 耗时: {elapsed:.2f}s")
             self.logger.info(f"   回答: {a}")
     
-    def error(self, msg: str):
-        self.logger.error(f"❌ {msg}")
+    def error(self, msg: str, exc_info: bool = False):
+        self.logger.error(f"❌ {msg}", exc_info=exc_info)

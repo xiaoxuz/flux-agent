@@ -437,6 +437,7 @@ def demo_agent_with_dynamic_skills(skills_dir: str):
     print(f"回答: {result.answer[:200]}...")
 
     print(f"回答: {result.answer[:200]}...")
+    print(f"token: {result.token_usage}")
     print()
 
 

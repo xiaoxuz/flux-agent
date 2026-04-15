@@ -91,6 +91,7 @@ def demo_react_mcp():
     print(f"\n回答: {result.answer[:300]}")
     print(f"状态: {result.status.value}")
     print(f"步数: {result.total_steps}")
+    print(f"token: {result.token_usage}")
     print()
 
 
@@ -136,6 +137,7 @@ def demo_reflexion_mcp():
     print(f"\n回答: {result.answer[:300]}")
     print(f"状态: {result.status.value}")
     print(f"反思轮数: {result.metadata.get('total_reflections', 0)}")
+    print(f"token: {result.token_usage}")
     print()
 
 
@@ -166,6 +168,7 @@ def demo_mixed_tools():
 
     print(f"\n回答: {result.answer[:300]}")
     print(f"状态: {result.status.value}")
+    print(f"token: {result.token_usage}")
     print()
 
 
@@ -183,7 +186,7 @@ def main():
         # demo_react_mcp()
         # demo_plan_execute_mcp()
         demo_reflexion_mcp()
-        # demo_mixed_tools()
+        demo_mixed_tools()
     except Exception as e:
         print(f"运行示例时出错: {e}")
         import traceback

@@ -16,6 +16,7 @@ from .base import (
 )
 from .skill import Skill
 from .utils.prompts import PromptLibrary
+from .utils.token_usage import extract_usage_from_message, aggregate_details_to_summary
 
 
 class ReflexionAgent(BaseAgent):
@@ -99,6 +100,7 @@ class ReflexionAgent(BaseAgent):
         reflections = []
         current_answer = ""
         iteration = 0
+        details = []
 
         # 迭代循环
         while iteration < self.max_iterations:
@@ -106,6 +108,8 @@ class ReflexionAgent(BaseAgent):
             current_answer = self._generate(
                 task=task,
                 reflections=reflections,
+                step_index=step_index,
+                details=details,
             )
             attempts.append(current_answer)
             
@@ -126,6 +130,8 @@ class ReflexionAgent(BaseAgent):
             score, needs_improvement, evaluation = self._evaluate(
                 task=task,
                 answer=current_answer,
+                step_index=step_index,
+                details=details,
             )
             
             self._logger.info(f"  评估分数: {score}/10 | 需要改进: {needs_improvement}")
@@ -146,6 +152,8 @@ class ReflexionAgent(BaseAgent):
                 answer=current_answer,
                 evaluation=evaluation,
                 previous_reflections=reflections,
+                step_index=step_index,
+                details=details,
             )
             reflections.append(reflection)
             
@@ -171,12 +179,16 @@ class ReflexionAgent(BaseAgent):
         steps.append(step)
         self._emit_step(step)
         
+        token_summary = aggregate_details_to_summary(details)
+
         return AgentOutput(
             answer=current_answer,
             status=AgentStatus.SUCCESS,
             steps=steps,
             agent_mode=self.mode,
             total_steps=len(steps),
+            total_tokens=token_summary.total_tokens or None,
+            token_usage=token_summary,
             metadata={
                 "total_iterations": iteration + 1,
                 "total_reflections": len(reflections),
@@ -184,7 +196,7 @@ class ReflexionAgent(BaseAgent):
             },
         )
     
-    def _generate(self, task: str, reflections: list[str]) -> str:
+    def _generate(self, task: str, reflections: list[str], step_index: int, details: list) -> str:
         """生成/改进回答"""
         if reflections:
             reflection_context = "基于以下反思进行改进:\n" + "\n".join([
@@ -207,46 +219,48 @@ class ReflexionAgent(BaseAgent):
             reflection_context=reflection_context,
         )
 
-        response = self.llm.invoke([
-            SystemMessage(content=system),
-            HumanMessage(content=prompt),
-        ])
-
         if self._executor and self.tools:
             exec_result = self._executor.invoke({
                 "messages": [SystemMessage(content=system), HumanMessage(content=prompt)]
             })
-            
+
             result_text = ""
             for msg in reversed(exec_result.get("messages", [])):
                 if hasattr(msg, 'content') and msg.type == "ai" and not getattr(msg, "tool_calls", None):
                     result_text = msg.content
+                    if usage := extract_usage_from_message(msg, step_index=step_index, operation="generate"):
+                        details.append(usage)
                     break
-            
+
             return result_text or "执行完成"
         else:
             response = self.llm.invoke([
                 SystemMessage(content=system),
                 HumanMessage(content=prompt),
             ])
+            if usage := extract_usage_from_message(response, step_index=step_index, operation="generate"):
+                details.append(usage)
             return response.content
     
-    def _evaluate(self, task: str, answer: str) -> tuple[float, bool, str]:
+    def _evaluate(self, task: str, answer: str, step_index: int, details: list) -> tuple[float, bool, str]:
         """评估当前回答质量，返回 (分数, 是否需要改进, 评估内容)"""
         prompt_template = PromptLibrary.get("reflexion.evaluator")
         prompt = prompt_template.format(task=task, answer=answer)
-        
+
         evaluator_llm = self._get_evaluator_llm()
         response = evaluator_llm.invoke([
             SystemMessage(content="你是一个严格的质量评估专家。"),
             HumanMessage(content=prompt),
         ])
-        
+
+        if usage := extract_usage_from_message(response, step_index=step_index, operation="evaluate"):
+            details.append(usage)
+
         evaluation = response.content
-        
+
         score = self._parse_score(evaluation)
         needs_improvement = self._parse_needs_improvement(evaluation)
-        
+
         return score, needs_improvement, evaluation
     
     def _reflect(
@@ -255,12 +269,14 @@ class ReflexionAgent(BaseAgent):
         answer: str,
         evaluation: str,
         previous_reflections: list[str],
+        step_index: int,
+        details: list,
     ) -> str:
         """反思并提出改进方向"""
         prev_text = "\n".join([
             f"第{i+1}轮: {r}" for i, r in enumerate(previous_reflections)
         ]) if previous_reflections else "无"
-        
+
         prompt_template = PromptLibrary.get("reflexion.reflector")
         prompt = prompt_template.format(
             task=task,
@@ -268,12 +284,15 @@ class ReflexionAgent(BaseAgent):
             evaluation=evaluation,
             previous_reflections=prev_text,
         )
-        
+
         response = self.llm.invoke([
             SystemMessage(content="你是一个善于自我反思和改进的专家。"),
             HumanMessage(content=prompt),
         ])
-        
+
+        if usage := extract_usage_from_message(response, step_index=step_index, operation="reflect"):
+            details.append(usage)
+
         return response.content
     
     def _parse_score(self, evaluation: str) -> float:

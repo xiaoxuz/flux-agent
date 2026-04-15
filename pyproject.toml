@@ -1,6 +1,6 @@
 [project]
 name = "flux-agent"
-version = "0.2.8"
+version = "0.2.9"
 description = "面向生产环境的 LLM Agent 与 Workflow 编排框架。通过 JSON 配置或纯代码即可构建多 Agent 协作流，内置四种 Agent 模式、Skill 插件系统、MCP 协议接入、RAG 知识库，以及十余种开箱即用的工作流节点。"
 readme = "README.md"
 requires-python = ">=3.10"

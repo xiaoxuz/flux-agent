@@ -57,6 +57,7 @@ def demo_manual_mode():
     result = supervisor.invoke("调研 2024 年 AI 领域的重要突破并写一份总结报告")
     print(f"\n回答:\n{result.answer[:500]}...")
     print(f"状态: {result.status.value}, 步数: {result.total_steps}")
+    print(f"token: {result.token_usage}")
 
 
 # ============================================================================
@@ -80,6 +81,7 @@ def demo_auto_mode():
     result = supervisor.invoke("分析 Python 3.13 的新特性，并写一份对比文档,必须用多 agent处理, 然后agent是 react 模式, 然后模拟下生成(a/b/c)三个 agent, b依赖a的结果， c依赖 a和 b 的结果,  然后a输出111111  b输出2222 c输出3333")
     print(f"\n回答:\n{result.answer[:500]}...")
     print(f"状态: {result.status.value}, 步数: {result.total_steps}")
+    print(f"token: {result.token_usage}")
 
 
 # ============================================================================
@@ -102,6 +104,7 @@ def demo_simple_query():
     result = supervisor.invoke("什么是 Python？")
     print(f"\n回答:\n{result.answer[:500]}...")
     print(f"状态: {result.status.value}, 步数: {result.total_steps}")
+    print(f"token: {result.token_usage}") 
 
 
 # ============================================================================
@@ -215,6 +218,7 @@ def demo_auto_with_skill_and_tools():
     result = supervisor.invoke("我需要分析一周的气温数据并生成报告。气温数据(摄氏度): [18, 22, 15, 20, 25, 19, 23]。请先用数据分析工具统计分析气温（总和/平均值/最高/最低），然后把平均值从摄氏度换算为华氏度，最后生成带当前时间戳的专业气象分析报告。要求使用数据分析员和气象报告员两个角色协作完成，报告员需要依赖分析员的数据结果。")
     print(f"\n回答:\n{result.answer}")
     print(f"\n状态: {result.status.value}, 步数: {result.total_steps}")
+    print(f"token: {result.token_usage}")
 
 
 def _get_llm():
@@ -227,9 +231,9 @@ if __name__ == "__main__":
     print("Flux-Agent Supervisor Agent 演示")
     print("请确保已设置 OPENAI_API_KEY 环境变量")
 
-    demo_manual_mode()
+    # demo_manual_mode()
     # demo_auto_mode()
-    # demo_simple_query()
+    demo_simple_query()
     # demo_auto_with_skill_and_tools()
 
     print("\n演示完成")

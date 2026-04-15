@@ -9,6 +9,7 @@
 - **多模式 Agent** - ReAct / Deep / Plan-Execute / Reflexion 四种单 Agent 模式 + Supervisor 多角色协作编排
 - **Skill 系统** - 模块化扩展：领域指令注入、脚本执行、参考资料按需加载
 - **MCP 协议接入** - 支持连接外部 MCP Server，自动将 MCP 工具注入 Agent 工具集
+- **Bash 与专用工具双向引导** - 内置 Bash 执行工具 + 5 个文件操作专用工具（搜索/读取/编辑/写入），模块级 docstring 引导 LLM 优先使用专用工具、避免危险操作，安全可控
 - **RAG 能力** - 知识库管理、向量检索、检索增强生成
 - **多模态支持** - 支持图片、视频输入
 - **可插拔扩展** - 用户可按规范开发自定义节点，注册即可使用
@@ -263,13 +264,14 @@ MCP 工具会自动注册到 Agent 工具集，与其他工具无缝协作。示
 - `examples/agents/demo_mcp_agent.py` — Agent + MCP 集成演示
 - `examples/node/demo_mcp.py` — MCP 工作流配置
 
-详细文档: [SKILLS.md](docs/SKILLS.md)
+详细文档: [MCP.md](docs/MCP.md)
 
 ## 文档
 
 - [使用文档](docs/USAGE.md) - 快速开始、API 参考、完整示例
 - [智能 Agent 模块](docs/AGENTS.md) - 多模式 Agent 开箱即用
 - [Skill 系统](docs/SKILLS.md) - Skill 扩展机制完整指南
+- [MCP 协议接入](docs/MCP.md) - MCP Server 连接与工具集成
 - [RAG 模块](docs/RAG.md) - 知识库创建、检索、过滤
 - [配置参考](docs/CONFIG_REFERENCE.md) - JSON 配置完整说明
 - [节点开发指南](docs/NODE_DEVELOPMENT.md) - 自定义节点开发规范
