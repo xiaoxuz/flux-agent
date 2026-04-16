@@ -2,6 +2,7 @@
 flux_agent/agents/reflexion_agent.py
 Reflexion 模式：执行 → 评估 → 反思 → 改进重试
 """
+import json
 import re
 
 from typing import List
@@ -110,6 +111,7 @@ class ReflexionAgent(BaseAgent):
                 reflections=reflections,
                 step_index=step_index,
                 details=details,
+                image_list=agent_input.image_list,
             )
             attempts.append(current_answer)
             
@@ -132,9 +134,10 @@ class ReflexionAgent(BaseAgent):
                 answer=current_answer,
                 step_index=step_index,
                 details=details,
+                image_list=agent_input.image_list,
             )
             
-            self._logger.info(f"  评估分数: {score}/10 | 需要改进: {needs_improvement}")
+            self._logger.info(f"  评估分数: {score}/10 | 需要改进: {needs_improvement} | 评估: {evaluation[:100]}...")
             
             # 3. 判断是否满意
             is_satisfied = (score >= self.quality_threshold) or (not needs_improvement)
@@ -154,6 +157,7 @@ class ReflexionAgent(BaseAgent):
                 previous_reflections=reflections,
                 step_index=step_index,
                 details=details,
+                image_list=agent_input.image_list,
             )
             reflections.append(reflection)
             
@@ -196,7 +200,7 @@ class ReflexionAgent(BaseAgent):
             },
         )
     
-    def _generate(self, task: str, reflections: list[str], step_index: int, details: list) -> str:
+    def _generate(self, task: str, reflections: list[str], step_index: int, details: list, image_list: list[str] = None) -> str:
         """生成/改进回答"""
         if reflections:
             reflection_context = "基于以下反思进行改进:\n" + "\n".join([
@@ -219,9 +223,17 @@ class ReflexionAgent(BaseAgent):
             reflection_context=reflection_context,
         )
 
+        # 构建 HumanMessage，支持多模态
+        if image_list:
+            from .base import AgentInput
+            image_blocks = [AgentInput._build_image_block(img) for img in image_list]
+            human_content = [{"type": "text", "text": prompt}, *image_blocks]
+        else:
+            human_content = prompt
+
         if self._executor and self.tools:
             exec_result = self._executor.invoke({
-                "messages": [SystemMessage(content=system), HumanMessage(content=prompt)]
+                "messages": [SystemMessage(content=system), HumanMessage(content=human_content)]
             })
 
             result_text = ""
@@ -236,30 +248,49 @@ class ReflexionAgent(BaseAgent):
         else:
             response = self.llm.invoke([
                 SystemMessage(content=system),
-                HumanMessage(content=prompt),
+                HumanMessage(content=human_content),
             ])
             if usage := extract_usage_from_message(response, step_index=step_index, operation="generate"):
                 details.append(usage)
             return response.content
     
-    def _evaluate(self, task: str, answer: str, step_index: int, details: list) -> tuple[float, bool, str]:
+    def _evaluate(self, task: str, answer: str, step_index: int, details: list, image_list: list[str] = None) -> tuple[float, bool, str]:
         """评估当前回答质量，返回 (分数, 是否需要改进, 评估内容)"""
         prompt_template = PromptLibrary.get("reflexion.evaluator")
         prompt = prompt_template.format(task=task, answer=answer)
 
         evaluator_llm = self._get_evaluator_llm()
+
+        # 构建多模态消息
+        if image_list:
+            image_blocks = [AgentInput._build_image_block(img) for img in image_list]
+            human_content = [{"type": "text", "text": prompt}, *image_blocks]
+        else:
+            human_content = prompt
+
         response = evaluator_llm.invoke([
-            SystemMessage(content="你是一个严格的质量评估专家。"),
-            HumanMessage(content=prompt),
+            SystemMessage(content="你是一个严格的质量评估专家。请以 JSON 格式输出评估结果。"),
+            HumanMessage(content=human_content),
         ])
 
         if usage := extract_usage_from_message(response, step_index=step_index, operation="evaluate"):
             details.append(usage)
 
-        evaluation = response.content
+        raw = response.content.strip()
+        # 尝试提取 JSON（处理可能的 markdown 代码块）
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
 
-        score = self._parse_score(evaluation)
-        needs_improvement = self._parse_needs_improvement(evaluation)
+        try:
+            data = json.loads(raw)
+            score = float(data.get("score", 5.0))
+            needs_improvement = bool(data.get("needs_improvement", True))
+            evaluation = data.get("evaluation", raw)
+        except (json.JSONDecodeError, ValueError, KeyError):
+            # 兜底：解析失败时用正则提取
+            score = self._parse_score(raw)
+            needs_improvement = self._parse_needs_improvement(raw)
+            evaluation = raw
 
         return score, needs_improvement, evaluation
     
@@ -271,6 +302,7 @@ class ReflexionAgent(BaseAgent):
         previous_reflections: list[str],
         step_index: int,
         details: list,
+        image_list: list[str] = None,
     ) -> str:
         """反思并提出改进方向"""
         prev_text = "\n".join([
@@ -285,9 +317,16 @@ class ReflexionAgent(BaseAgent):
             previous_reflections=prev_text,
         )
 
+        # 构建多模态消息
+        if image_list:
+            image_blocks = [AgentInput._build_image_block(img) for img in image_list]
+            human_content = [{"type": "text", "text": prompt}, *image_blocks]
+        else:
+            human_content = prompt
+
         response = self.llm.invoke([
             SystemMessage(content="你是一个善于自我反思和改进的专家。"),
-            HumanMessage(content=prompt),
+            HumanMessage(content=human_content),
         ])
 
         if usage := extract_usage_from_message(response, step_index=step_index, operation="reflect"):

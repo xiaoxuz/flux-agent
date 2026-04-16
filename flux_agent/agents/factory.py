@@ -25,6 +25,7 @@ class WorkerConfig:
     system_prompt: str = ""
     skills: List[str] = field(default_factory=list)
     depends_on: List[str] = field(default_factory=list)  # 依赖的 worker 名称列表
+    image_indices: List[int] = field(default_factory=list)  # 该 worker 需要查看的图片索引列表
 
 
 def create_agent(

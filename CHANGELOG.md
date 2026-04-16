@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-04-16
+
+### Added
+
+- **全 Agent 模式多模态图片支持**：
+  - `AgentInput` 新增 `image_list` 字段：支持 URL、base64 字符串、本地文件路径、data URI 四种格式
+  - 图片文件头自动检测 MIME 类型（PNG/JPEG/GIF/WEBP/BMP），避免格式误判
+  - **ReActAgent/DeepAgent**：`to_messages()` 自动将图片注入最后一条 HumanMessage
+  - **PlanExecuteAgent**：`_generate_plan`（规划）、`_execute_step`（执行）、`_replan`（重规划）三处 LLM 调用均可接收图片
+  - **ReflexionAgent**：`_generate`（生成）、`_evaluate`（评估）、`_reflect`（反思）三处均可接收图片
+  - **SupervisorAgent**：`_decompose`（分解）、`_plan_workers`（规划 worker）支持图片；worker 分发支持 `image_indices` 指定每张图片分配给哪些 worker
+
 ## [0.2.9] - 2026-04-15
 
 ### Added

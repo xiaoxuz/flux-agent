@@ -118,10 +118,11 @@ class SupervisorAgent(BaseAgent):
         """三阶段：分解 -> 分发 -> 合成（自动模式下先规划 worker）"""
         query = agent_input.query
         details = []
+        self._input_images = agent_input.image_list  # 保存完整图片列表用于 worker 分发
 
         # 自动模式：动态规划 worker
         if self._auto_mode and not self._workers:
-            worker_plan = self._plan_workers(query, details)
+            worker_plan = self._plan_workers(query, details, self._input_images)
             if not worker_plan:
                 # LLM 判断单角色够用，用 ReactAgent 直接回复（带完整工具链）
                 self._logger.info("SubAgent - 自动模式：LLM 判断无需多角色，创建 ReactAgent 直接回复")
@@ -133,7 +134,7 @@ class SupervisorAgent(BaseAgent):
                     config=self.config,
                     skills=self._skill_registry.invocable_skills if self._skill_registry and self._skill_registry.invocable_skills else None,
                 )
-                output = single_agent.invoke(query)
+                output = single_agent.invoke(agent_input)
                 # 合并 ReactAgent 的 token usage
                 if output.token_usage:
                     details.extend(output.token_usage.details)
@@ -150,7 +151,7 @@ class SupervisorAgent(BaseAgent):
             self._logger.info(f"SubAgent-自动模式：创建了 {len(self._workers)} 个 worker: {list(self._workers.keys())}")
 
         # Phase 1: 任务分解
-        subtasks = self._decompose(query, details)
+        subtasks = self._decompose(query, details, self._input_images)
         if not subtasks:
             return AgentOutput(
                 answer="无法分解任务，没有可用的 worker 能处理该请求",
@@ -198,7 +199,7 @@ class SupervisorAgent(BaseAgent):
             token_usage=token_summary,
         )
 
-    def _decompose(self, query: str, details: list) -> list[dict]:
+    def _decompose(self, query: str, details: list, image_list: list[str] = None) -> list[dict]:
         """Phase 1: LLM 分解任务为子任务列表"""
         worker_desc = "\n".join(
             f"- {name}: {w.config.description} (可用工具: {[t.name for t in w.agent.tools]})"
@@ -211,7 +212,15 @@ class SupervisorAgent(BaseAgent):
             worker_descriptions=worker_desc,
             query=query,
         )
-        resp = self.llm.invoke([("user", prompt)])
+
+        # 构建多模态消息
+        if image_list:
+            image_blocks = [AgentInput._build_image_block(img) for img in image_list]
+            user_content = [{"type": "text", "text": prompt}, *image_blocks]
+        else:
+            user_content = prompt
+
+        resp = self.llm.invoke([("user", user_content)])
         if usage := extract_usage_from_message(resp, operation="decompose"):
             details.append(usage)
         raw = resp.content.strip()
@@ -311,7 +320,18 @@ class SupervisorAgent(BaseAgent):
             )
 
         self._logger.info(f"Dispatch to '{worker_name}': {task_desc}")
-        return worker.agent.invoke(task_desc)
+
+        # 根据 worker 的 image_indices 分发对应图片
+        worker_images = []
+        if worker.config.image_indices and hasattr(self, '_input_images') and self._input_images:
+            worker_images = [
+                self._input_images[i]
+                for i in worker.config.image_indices
+                if i < len(self._input_images)
+            ]
+
+        worker_input = AgentInput(query=task_desc, image_list=worker_images)
+        return worker.agent.invoke(worker_input)
 
     def _synthesize(self, query: str, worker_results: dict[str, str], details: list) -> str:
         """Phase 3: LLM 合成最终回答"""
@@ -328,7 +348,7 @@ class SupervisorAgent(BaseAgent):
             details.append(usage)
         return resp.content.strip()
 
-    def _plan_workers(self, query: str, details: list) -> list[dict]:
+    def _plan_workers(self, query: str, details: list, image_list: list[str] = None) -> list[dict]:
         """自动模式：LLM 规划需要哪些 worker 角色"""
         # 获取所有可用工具，注入到 prompt 中供 LLM 分配
         all_tools = self._get_all_tools()
@@ -347,11 +367,25 @@ class SupervisorAgent(BaseAgent):
             if skill_catalog:
                 available_tools_str += f"\n{skill_catalog}\n"
 
+        # 如果有图片，注入图片说明
+        image_instruction = ""
+        if image_list:
+            image_instruction = f"\n\n任务包含 {len(image_list)} 张图片（索引 0-{len(image_list)-1}）。"
+            image_instruction += '如果任务包含多张图片，请在每个 worker 定义中添加 "image_indices": [0, 1] 字段来指定该 worker 需要查看的图片索引列表。'
+
         prompt = PromptLibrary.get("supervisor.plan_workers").format(
             query=query,
             available_tools=available_tools_str,
-        )
-        resp = self.llm.invoke([("user", prompt)])
+        ) + image_instruction
+
+        # 构建多模态消息
+        if image_list:
+            image_blocks = [AgentInput._build_image_block(img) for img in image_list]
+            user_content = [{"type": "text", "text": prompt}, *image_blocks]
+        else:
+            user_content = prompt
+
+        resp = self.llm.invoke([("user", user_content)])
         if usage := extract_usage_from_message(resp, operation="plan_workers"):
             details.append(usage)
         raw = resp.content.strip()
@@ -393,6 +427,7 @@ class SupervisorAgent(BaseAgent):
                 description=wdef["description"],
                 tools=wdef.get("tools", []),
                 depends_on=wdef.get("depends_on", []),
+                image_indices=wdef.get("image_indices", []),
             )
             # 按 LLM 指定的工具名筛选，只传对应的 BaseTool 实例
             worker_tools = [tool_map[n] for n in wdef.get("tools", []) if n in tool_map]
@@ -406,7 +441,7 @@ class SupervisorAgent(BaseAgent):
             )
             self._workers[name] = _WorkerInstance(config=wcfg, agent=worker_agent)
             self._worker_configs[name] = wcfg
-            self._logger.info(f"SubAgent-动态模式：创建 Agent:[{name}] Tools:[{[t.name for t in worker_tools]}]")
+            self._logger.info(f"SubAgent-动态模式：创建 Agent:[{name}] Tools:[{[t.name for t in worker_tools]}] image_indices:[{wcfg.image_indices}]")
 
     def __repr__(self) -> str:
         worker_names = list(self._workers.keys())

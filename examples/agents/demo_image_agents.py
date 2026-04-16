@@ -26,6 +26,43 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from examples.tools import mock_search
 
+import requests
+import base64
+from urllib.parse import urlparse
+
+
+def image_url_to_base64(url: str, timeout: int = 10, with_prefix: bool = False) -> str:
+    """
+    将图片 URL 转换为 Base64 编码字符串
+
+    Args:
+        url: 图片的 URL 地址
+        timeout: 请求超时时间（秒）
+        with_prefix: 是否添加 data URI 前缀（如 data:image/png;base64,）
+
+    Returns:
+        Base64 编码的字符串
+    """
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+                       'AppleWebKit/537.36 (KHTML, like Gecko) '
+                       'Chrome/120.0.0.0 Safari/537.36'
+    }
+
+    response = requests.get(url, headers=headers, timeout=timeout)
+    response.raise_for_status()
+
+    # 获取图片的 MIME 类型
+    content_type = response.headers.get('Content-Type', 'image/png')
+
+    # 编码为 base64
+    base64_str = base64.b64encode(response.content).decode('utf-8')
+
+    if with_prefix:
+        return f"data:{content_type};base64,{base64_str}"
+
+    return base64_str
+
 
 def demo_available_modes():
     """演示查看所有可用模式"""
@@ -49,8 +86,12 @@ def demo_react_agent():
         tools=[mock_search]
     )
     input = AgentInput(
-        query=" 告诉我你是谁? 什么是量子计算用简单的语言解释，然后再看下北京天气？",
-        messages=[{"role": "user", "content": "你是AI 小弟"}]
+        query=" 告诉我你是谁? 描述下图片内容，然后再看下北京天气？",
+        messages=[{"role": "user", "content": "你是AI 小弟"}],
+        image_list=[
+            image_url_to_base64(f"https://{os.getenv('TEST_IMAGE_HOST')}a78f8509db7dfcb55861757ae2bc9e4b.jpg"),
+            image_url_to_base64(f"https://{os.getenv('TEST_IMAGE_HOST')}f3685cdf32f66ad60412b0a782fcd362.jpg"),
+        ]
     )
     result = agent.invoke(input)
     
@@ -75,8 +116,16 @@ def demo_plan_execute_agent():
         enable_replan=True,
         config=AgentConfig(verbose=True),
     )
+
+    input = AgentInput(
+        query="找出两张图片相同点",
+        image_list=[
+            image_url_to_base64(f"https://{os.getenv('TEST_IMAGE_HOST')}a78f8509db7dfcb55861757ae2bc9e4b.jpg"),
+            image_url_to_base64(f"https://{os.getenv('TEST_IMAGE_HOST')}f3685cdf32f66ad60412b0a782fcd362.jpg"),
+        ]
+    )
     
-    result = agent.invoke("分析 Python 和 JavaScript 的优缺点，并给出选择建议")
+    result = agent.invoke(input)
     
     print(f"\n回答: {result.answer[:300]}...")
     print(f"状态: {result.status.value}")
@@ -100,8 +149,17 @@ def demo_reflexion_agent():
         quality_threshold=10.0,
         config=AgentConfig(verbose=True),
     )
+    input = AgentInput(
+        query="描述图片内容",
+        image_list=[
+            image_url_to_base64(f"https://{os.getenv('TEST_IMAGE_HOST')}a78f8509db7dfcb55861757ae2bc9e4b.jpg"),
+            image_url_to_base64(f"https://{os.getenv('TEST_IMAGE_HOST')}f3685cdf32f66ad60412b0a782fcd362.jpg"),
+        ]
+    )
     
-    result = agent.invoke("写一个 Python 函数，计算斐波那契数列")
+    
+    result = agent.invoke(input)
+    
     
     print(f"\n回答: {result.answer[:800]}...")
     print(f"状态: {result.status.value}")
@@ -144,8 +202,8 @@ def main():
     # 简单演示（需要 API key）
     try:
         # demo_react_agent()
-        # demo_plan_execute_agent()
-        demo_reflexion_agent()
+        demo_plan_execute_agent()
+        # demo_reflexion_agent()
         # demo_unified_output()
     except Exception as e:
         print(f"运行示例需要配置 OPENAI_API_KEY: {e}")

@@ -225,12 +225,66 @@ from flux_agent.agents import AgentInput
 
 input = AgentInput(
     query="你的问题",              # 必填：用户的问题/任务
-    messages=[...],               # 可选：对话历史
+    messages=[...],               # 可选：对话历史（仅 ReAct/Deep 模式生效）
     context="额外上下文",          # 可选：额外信息
     system_prompt="自定义提示词",  # 可选：覆盖默认提示词
     max_steps=10,                 # 可选：最大步数
     config={}                     # 可选：模式特定配置
 )
+```
+
+### 多模态图片输入
+
+所有 Agent 模式均支持通过 `image_list` 传入图片，支持 **URL、base64 字符串、本地文件路径、data URI** 四种格式：
+
+```python
+from flux_agent.agents import create_agent, AgentInput
+
+agent = create_agent("react", llm=llm, tools=[search])
+
+# 方式1：URL
+result = agent.invoke(AgentInput(
+    query="这张图里是什么？",
+    image_list=["https://example.com/photo.jpg"],
+))
+
+# 方式2：本地文件路径
+result = agent.invoke(AgentInput(
+    query="分析这张截图",
+    image_list=["/path/to/screenshot.png"],
+))
+
+# 方式3：base64 字符串
+import base64
+with open("image.png", "rb") as f:
+    b64 = base64.b64encode(f.read()).decode()
+result = agent.invoke(AgentInput(
+    query="描述图片内容",
+    image_list=[b64],
+))
+
+# 方式4：data URI
+result = agent.invoke(AgentInput(
+    query="这是什么？",
+    image_list=["data:image/png;base64,iVBORw0KGgo..."],
+))
+
+# 多张图片
+result = agent.invoke(AgentInput(
+    query="对比这两张图的差异",
+    image_list=["photo1.jpg", "photo2.jpg"],
+))
+```
+
+**Supervisor 模式下 worker 图片分发**：LLM 规划 worker 时可通过 `image_indices` 指定每张图片分配给哪些 worker：
+
+```python
+# 自动模式示例 — 传入 3 张图片
+result = supervisor.invoke(AgentInput(
+    query="分析这3张产品截图，描述UI变化并评估设计质量",
+    image_list=["s1.png", "s2.png", "s3.png"],
+))
+# LLM 会自动规划：image_analyst 拿到全部 3 张图片，writer 不需要图片
 ```
 
 ### AgentOutput

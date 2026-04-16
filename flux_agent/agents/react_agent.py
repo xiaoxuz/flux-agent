@@ -178,7 +178,6 @@ class ReactAgent(BaseAgent):
     def _run_no_callback(self, agent_input: AgentInput) -> AgentOutput:
         """原始 _run 逻辑，无回调时保持完全不变"""
         messages = agent_input.to_messages()
-
         # 如果有强制激活的 skills，把 content 直接注入到 user message 前面
         forced_skills = self._resolve_active_skills(agent_input)
         if forced_skills:

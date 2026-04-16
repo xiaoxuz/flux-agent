@@ -19,6 +19,20 @@ from .skill import Skill, SkillLoader, SkillSelector, SkillRegistry, SkillExecut
 from flux_agent.mcp import MCPClientManager
 import logging
 
+def _detect_image_mime(raw_bytes: bytes) -> str:
+    """通过文件头检测图片 MIME 类型"""
+    if raw_bytes[:8] == b"\x89PNG\r\n\x1a\n":
+        return "data:image/png"
+    if raw_bytes[:2] in (b"\xff\xd8", b"\xff\xd9"):
+        return "data:image/jpeg"
+    if raw_bytes[:6] in (b"GIF87a", b"GIF89a"):
+        return "data:image/gif"
+    if raw_bytes[:4] == b"RIFF" and raw_bytes[8:12] == b"WEBP":
+        return "data:image/webp"
+    if raw_bytes[:2] == b"BM":
+        return "data:image/bmp"
+    return "data:image/jpeg"
+
 def _wrap_mcp_tool_for_sync(tool: BaseTool, logger: logging.Logger) -> BaseTool:
     """
     为 MCP 工具包装同步调用支持。
@@ -117,7 +131,7 @@ class TokenUsageSummary(BaseModel):
 class AgentInput(BaseModel):
     """统一的 Agent 输入"""
     query: str = Field(..., description="用户的问题/任务描述")
-    messages: Optional[list[dict]] = Field(default=None, description="对话历史")
+    messages: Optional[list[dict]] = Field(default=None, description="对话历史（仅 ReAct/Deep 模式生效；PlanExecute/Reflexion/Supervisor 模式忽略此字段）")
     context: Optional[str] = Field(default=None, description="额外的上下文信息")
     system_prompt: Optional[str] = Field(default=None, description="覆盖默认的 system prompt")
     max_steps: int = Field(default=10, description="最大执行步数")
@@ -126,9 +140,11 @@ class AgentInput(BaseModel):
     skills: List[Skill] = Field(default_factory=list, description="可用的 skills 全集")
     active_skills: List[str] = Field(default_factory=list, description="本次强制激活的 skill 名称列表")
     auto_select_skills: bool = Field(default=True, description="是否由 Agent 自主选择 skills")
+    # 多模态输入
+    image_list: List[str] = Field(default_factory=list, description="图片输入（URL、base64 字符串、本地文件路径或 data URI）")
 
     def to_messages(self) -> list[BaseMessage]:
-        """将输入转换为 LangChain 消息格式"""
+        """将输入转换为 LangChain 消息格式，支持多模态（文本 + 图片）"""
         msgs = []
         if self.messages:
             for msg in self.messages:
@@ -138,8 +154,53 @@ class AgentInput(BaseModel):
                     msgs.append(HumanMessage(content=content))
                 elif role == "assistant":
                     msgs.append(AIMessage(content=content))
-        msgs.append(HumanMessage(content=self.query))
+
+        # 构建最后一条 HumanMessage（文本 + 图片）
+        human_content = []
+        if self.query:
+            human_content.append({"type": "text", "text": self.query})
+        for img in self.image_list:
+            human_content.append(self._build_image_block(img))
+
+        if human_content:
+            if len(human_content) == 1 and human_content[0]["type"] == "text":
+                msgs.append(HumanMessage(content=self.query))
+            else:
+                msgs.append(HumanMessage(content=human_content))
+
         return msgs
+
+    @staticmethod
+    def _build_image_block(image_input: str) -> dict:
+        """构建图片消息块。支持 URL、data URI、本地文件路径、base64 字符串"""
+        import base64
+        import os
+        import re
+
+        # data URI 直接使用（已包含正确的 MIME 类型）
+        if image_input.startswith("data:image"):
+            return {"type": "image_url", "image_url": {"url": image_input}}
+
+        # URL
+        if image_input.startswith("http://") or image_input.startswith("https://"):
+            return {"type": "image_url", "image_url": {"url": image_input}}
+
+        # 本地文件路径 — 读取文件头检测真实格式
+        if os.path.isfile(image_input):
+            with open(image_input, "rb") as f:
+                raw_bytes = f.read()
+            b64 = base64.b64encode(raw_bytes).decode()
+            mime = _detect_image_mime(raw_bytes)
+            return {"type": "image_url", "image_url": {"url": f"{mime};base64,{b64}"}}
+
+        # 纯 base64（长字符串且不含路径分隔符）— 尝试解码检测格式
+        if len(image_input) > 100 and not re.search(r"[\\/]", image_input):
+            raw_bytes = base64.b64decode(image_input)
+            mime = _detect_image_mime(raw_bytes)
+            return {"type": "image_url", "image_url": {"url": f"{mime};base64,{image_input}"}}
+
+        # 兜底：当作 base64 处理
+        return {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_input}"}}
 
 
 class AgentStep(BaseModel):

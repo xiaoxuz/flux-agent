@@ -14,7 +14,7 @@ import sys
 import logging
 import tempfile
 from pathlib import Path
-from flux_agent.agents import create_agent, WorkerConfig, AgentConfig, SkillLoader, Skill
+from flux_agent.agents import create_agent, WorkerConfig, AgentConfig, SkillLoader, Skill, AgentInput
 
 
 from dotenv import load_dotenv
@@ -94,6 +94,7 @@ def demo_simple_query():
     supervisor = create_agent(
         "supervisor",
         llm=_get_llm(),
+        config=AgentConfig(verbose=True)
     )
 
     print(f"\n{'='*60}")
@@ -220,6 +221,62 @@ def demo_auto_with_skill_and_tools():
     print(f"\n状态: {result.status.value}, 步数: {result.total_steps}")
     print(f"token: {result.token_usage}")
 
+def image_url_to_base64(url: str, timeout: int = 10, with_prefix: bool = False) -> str:
+    import requests
+    import base64
+    """
+    将图片 URL 转换为 Base64 编码字符串
+
+    Args:
+        url: 图片的 URL 地址
+        timeout: 请求超时时间（秒）
+        with_prefix: 是否添加 data URI 前缀（如 data:image/png;base64,）
+
+    Returns:
+        Base64 编码的字符串
+    """
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+                       'AppleWebKit/537.36 (KHTML, like Gecko) '
+                       'Chrome/120.0.0.0 Safari/537.36'
+    }
+
+    response = requests.get(url, headers=headers, timeout=timeout)
+    response.raise_for_status()
+
+    # 获取图片的 MIME 类型
+    content_type = response.headers.get('Content-Type', 'image/png')
+
+    # 编码为 base64
+    base64_str = base64.b64encode(response.content).decode('utf-8')
+
+    if with_prefix:
+        return f"data:{content_type};base64,{base64_str}"
+
+    return base64_str
+
+def demo_auto_image_test():
+    # 不传 workers，让 LLM 自动规划
+    supervisor = create_agent(
+        "supervisor",
+        llm=_get_llm(),
+        config=AgentConfig(verbose=True),
+    )
+
+    input = AgentInput(
+        query="描述图片内容, 要用2个 agent，分别描述一个图片",
+        # query="找出两张图片相同点, 要用3个 agent，一个描述第一个图片，一个描述第二个图片，一个对比两个图片的描述",
+        image_list=[
+            image_url_to_base64(f"https://{os.getenv('TEST_IMAGE_HOST')}a78f8509db7dfcb55861757ae2bc9e4b.jpg"),
+            image_url_to_base64(f"https://{os.getenv('TEST_IMAGE_HOST')}f3685cdf32f66ad60412b0a782fcd362.jpg"),
+        ]
+    )
+
+    result = supervisor.invoke(input)
+    print(f"\n回答:\n{result.answer}")
+    print(f"\n状态: {result.status.value}, 步数: {result.total_steps}")
+    print(f"token: {result.token_usage}")
+
 
 def _get_llm():
     """获取 LLM 实例（从环境变量读取配置，默认使用通义千问）"""
@@ -233,7 +290,8 @@ if __name__ == "__main__":
 
     # demo_manual_mode()
     # demo_auto_mode()
-    demo_simple_query()
+    # demo_simple_query()
     # demo_auto_with_skill_and_tools()
+    demo_auto_image_test()
 
     print("\n演示完成")

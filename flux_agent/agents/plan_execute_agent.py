@@ -90,7 +90,7 @@ class PlanExecuteAgent(BaseAgent):
         details = []
 
         # 1. 生成计划
-        plan = self._generate_plan(task, details)
+        plan = self._generate_plan(task, details, agent_input.image_list)
         
         self._logger.info(f"\n生成计划 ({len(plan)} 步):")
         for i, p in enumerate(plan):
@@ -120,6 +120,7 @@ class PlanExecuteAgent(BaseAgent):
                 current_step=plan_step,
                 step_index=step_index,
                 details=details,
+                image_list=agent_input.image_list,
             )
 
             step_results.append(result)
@@ -143,6 +144,7 @@ class PlanExecuteAgent(BaseAgent):
                     completed_results=step_results,
                     step_index=step_index,
                     details=details,
+                    image_list=agent_input.image_list,
                 )
                 
                 if not should_continue:
@@ -179,7 +181,7 @@ class PlanExecuteAgent(BaseAgent):
             },
         )
     
-    def _generate_plan(self, task: str, details: list) -> list[str]:
+    def _generate_plan(self, task: str, details: list, image_list: list[str] = None) -> list[str]:
         """生成执行计划"""
         prompt_template = PromptLibrary.get("plan_execute.planner")
         prompt = prompt_template.format(task=task)
@@ -192,9 +194,16 @@ class PlanExecuteAgent(BaseAgent):
             include_catalog=True,
         )
 
+        # 构建 HumanMessage，支持多模态
+        if image_list:
+            image_blocks = [AgentInput._build_image_block(img) for img in image_list]
+            human_content = [{"type": "text", "text": prompt}, *image_blocks]
+        else:
+            human_content = prompt
+
         response = self.llm.invoke([
             SystemMessage(content=system_content),
-            HumanMessage(content=prompt),
+            HumanMessage(content=human_content),
         ])
 
         if usage := extract_usage_from_message(response, operation="generate_plan"):
@@ -210,6 +219,7 @@ class PlanExecuteAgent(BaseAgent):
         current_step: str,
         step_index: int,
         details: list,
+        image_list: list[str] = None,
     ) -> str:
         """执行单步"""
         plan_text = "\n".join([f"Step {i+1}: {s}" for i, s in enumerate(plan)])
@@ -224,9 +234,15 @@ class PlanExecuteAgent(BaseAgent):
             current_step=current_step,
         )
 
+        if image_list:
+            image_blocks = [AgentInput._build_image_block(img) for img in image_list]
+            human_content = [{"type": "text", "text": exec_prompt}, *image_blocks]
+        else:
+            human_content = exec_prompt
+
         if self._executor and self.tools:
             exec_result = self._executor.invoke({
-                "messages": [HumanMessage(content=exec_prompt)]
+                "messages": [HumanMessage(content=human_content)]
             })
 
             result_text = ""
@@ -239,7 +255,7 @@ class PlanExecuteAgent(BaseAgent):
 
             return result_text or "执行完成"
         else:
-            response = self.llm.invoke([HumanMessage(content=exec_prompt)])
+            response = self.llm.invoke([HumanMessage(content=human_content)])
             if usage := extract_usage_from_message(response, step_index=step_index, operation="execute_step"):
                 details.append(usage)
             return response.content
@@ -252,6 +268,7 @@ class PlanExecuteAgent(BaseAgent):
         completed_results: list[str],
         step_index: int,
         details: list,
+        image_list: list[str] = None,
     ) -> tuple[bool, list[str] | None]:
         """重规划，返回 (是否继续, 新计划)"""
         plan_text = "\n".join([f"Step {i+1}: {s}" for i, s in enumerate(original_plan)])
@@ -266,7 +283,13 @@ class PlanExecuteAgent(BaseAgent):
             completed_results=results_text,
         )
 
-        response = self.llm.invoke([HumanMessage(content=prompt)])
+        if image_list:
+            image_blocks = [AgentInput._build_image_block(img) for img in image_list]
+            human_content = [{"type": "text", "text": prompt}, *image_blocks]
+        else:
+            human_content = prompt
+
+        response = self.llm.invoke([HumanMessage(content=human_content)])
         if usage := extract_usage_from_message(response, step_index=step_index, operation="replan"):
             details.append(usage)
         content = response.content
